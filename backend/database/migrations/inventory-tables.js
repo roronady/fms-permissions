@@ -18,6 +18,7 @@ export const createInventoryTables = async () => {
       max_quantity INTEGER DEFAULT 1000,
       unit_price DECIMAL(10,2) DEFAULT 0,
       total_value DECIMAL(10,2) DEFAULT 0,
+      item_type TEXT NOT NULL DEFAULT 'raw_material' CHECK (item_type IN ('raw_material', 'semi_finished_product', 'finished_product')),
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (category_id) REFERENCES categories(id),
@@ -26,6 +27,9 @@ export const createInventoryTables = async () => {
       FOREIGN KEY (location_id) REFERENCES locations(id),
       FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
     );
+    
+    -- Create index for item_type
+    CREATE INDEX IF NOT EXISTS idx_inventory_items_item_type ON inventory_items(item_type);
   `;
 
   const statements = sql.split(';').filter(stmt => stmt.trim());

@@ -16,7 +16,8 @@ import {
   History,
   Settings,
   Plus as PlusIcon,
-  Minus
+  Minus,
+  Filter
 } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 import { useSocket } from '../../contexts/SocketContext';
@@ -45,6 +46,7 @@ interface InventoryItem {
   average_price?: number;
   total_value: number;
   is_low_stock: boolean;
+  item_type: string;
   updated_at: string;
 }
 
@@ -71,14 +73,16 @@ const DEFAULT_COLUMNS: Column[] = [
   { id: 'total_value', label: 'Total Value', visible: true, width: 120, order: 12 },
   { id: 'min_quantity', label: 'Min Qty', visible: false, width: 100, order: 13 },
   { id: 'max_quantity', label: 'Max Qty', visible: false, width: 100, order: 14 },
-  { id: 'status', label: 'Status', visible: true, width: 100, order: 15 },
-  { id: 'actions', label: 'Actions', visible: true, width: 120, order: 16 }
+  { id: 'item_type', label: 'Item Type', visible: true, width: 130, order: 15 },
+  { id: 'status', label: 'Status', visible: true, width: 100, order: 16 },
+  { id: 'actions', label: 'Actions', visible: true, width: 120, order: 17 }
 ];
 
 const Inventory: React.FC = () => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedItemType, setSelectedItemType] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showStockMovementModal, setShowStockMovementModal] = useState(false);
@@ -110,7 +114,7 @@ const Inventory: React.FC = () => {
       // Clear the state to prevent reopening on page refresh
       window.history.replaceState({}, document.title);
     }
-  }, [searchTerm, selectedCategory, pagination.page, location.state]);
+  }, [searchTerm, selectedCategory, selectedItemType, pagination.page, location.state]);
 
   useEffect(() => {
     if (socket) {
@@ -136,6 +140,7 @@ const Inventory: React.FC = () => {
 
       if (searchTerm) params.search = searchTerm;
       if (selectedCategory !== 'all') params.category = selectedCategory;
+      if (selectedItemType !== 'all') params.itemType = selectedItemType;
 
       const response = await inventoryService.getItems(params);
       setItems(response.items);
@@ -302,6 +307,24 @@ const Inventory: React.FC = () => {
     }
     return null;
   };
+  
+  const getItemTypeLabel = (itemType: string) => {
+    switch (itemType) {
+      case 'raw_material': return 'Raw Material';
+      case 'semi_finished_product': return 'Semi-Finished';
+      case 'finished_product': return 'Finished Product';
+      default: return itemType;
+    }
+  };
+  
+  const getItemTypeColor = (itemType: string) => {
+    switch (itemType) {
+      case 'raw_material': return 'bg-blue-100 text-blue-800';
+      case 'semi_finished_product': return 'bg-purple-100 text-purple-800';
+      case 'finished_product': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   // Get visible columns sorted by order
   const visibleColumns = columns
@@ -445,6 +468,18 @@ const Inventory: React.FC = () => {
               ))}
             </select>
           </div>
+          <div className="sm:w-48">
+            <select
+              value={selectedItemType}
+              onChange={(e) => setSelectedItemType(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Item Types</option>
+              <option value="raw_material">Raw Materials</option>
+              <option value="semi_finished_product">Semi-Finished Products</option>
+              <option value="finished_product">Finished Products</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -574,6 +609,14 @@ const Inventory: React.FC = () => {
                                 {item.max_quantity}
                               </td>
                             );
+                          case 'item_type':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getItemTypeColor(item.item_type)}`}>
+                                  {getItemTypeLabel(item.item_type)}
+                                </span>
+                              </td>
+                            );
                           case 'status':
                             return (
                               <td key={column.id} className="px-6 py-4 whitespace-nowrap">
@@ -632,7 +675,7 @@ const Inventory: React.FC = () => {
                 <Package className="mx-auto h-12 w-12 text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">No items found</h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  {searchTerm || selectedCategory !== 'all' 
+                  {searchTerm || selectedCategory !== 'all' || selectedItemType !== 'all'
                     ? 'Try adjusting your search or filter criteria.'
                     : 'Get started by adding your first inventory item.'
                   }

@@ -16,7 +16,7 @@ router.use(authenticateToken);
 // Get all inventory items with search and filters
 router.get('/items', async (req, res) => {
   try {
-    const { search, category, supplier, lowStock, page = 1, limit = 50 } = req.query;
+    const { search, category, supplier, lowStock, itemType, page = 1, limit = 50 } = req.query;
     
     let sql = `
       SELECT 
@@ -73,6 +73,11 @@ router.get('/items', async (req, res) => {
     if (lowStock === 'true') {
       sql += ` AND i.quantity <= i.min_quantity`;
     }
+    
+    if (itemType) {
+      sql += ` AND i.item_type = ?`;
+      params.push(itemType);
+    }
 
     sql += ` ORDER BY i.updated_at DESC`;
 
@@ -118,6 +123,11 @@ router.get('/items', async (req, res) => {
 
     if (lowStock === 'true') {
       countSql += ` AND i.quantity <= i.min_quantity`;
+    }
+    
+    if (itemType) {
+      countSql += ` AND i.item_type = ?`;
+      countParams.push(itemType);
     }
 
     const countResult = await runQuery(countSql, countParams);
@@ -202,7 +212,7 @@ router.post('/items', async (req, res) => {
     const {
       name, sku, description, category_id, subcategory_id,
       unit_id, location_id, supplier_id, quantity,
-      min_quantity, max_quantity, unit_price
+      min_quantity, max_quantity, unit_price, item_type
     } = req.body;
 
     if (!name || !sku) {
@@ -216,12 +226,13 @@ router.post('/items', async (req, res) => {
       INSERT INTO inventory_items (
         name, sku, description, category_id, subcategory_id,
         unit_id, location_id, supplier_id, quantity,
-        min_quantity, max_quantity, unit_price, total_value
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        min_quantity, max_quantity, unit_price, total_value, item_type
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       name, sku, description, category_id, subcategory_id,
       unit_id, location_id, supplier_id, quantity || 0,
-      min_quantity || 0, max_quantity || 1000, unit_price || 0, totalValue
+      min_quantity || 0, max_quantity || 1000, unit_price || 0, totalValue,
+      item_type || 'raw_material'
     ]);
 
     // Add price history entry
@@ -293,7 +304,7 @@ router.put('/items/:id', async (req, res) => {
     const {
       name, sku, description, category_id, subcategory_id,
       unit_id, location_id, supplier_id, quantity,
-      min_quantity, max_quantity, unit_price
+      min_quantity, max_quantity, unit_price, item_type
     } = req.body;
 
     // Calculate new total value
@@ -308,13 +319,14 @@ router.put('/items/:id', async (req, res) => {
       UPDATE inventory_items SET
         name = ?, sku = ?, description = ?, category_id = ?, subcategory_id = ?,
         unit_id = ?, location_id = ?, supplier_id = ?, quantity = ?,
-        min_quantity = ?, max_quantity = ?, unit_price = ?, total_value = ?,
+        min_quantity = ?, max_quantity = ?, unit_price = ?, total_value = ?, item_type = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `, [
       name, sku, description, category_id, subcategory_id,
       unit_id, location_id, supplier_id, quantity,
-      min_quantity, max_quantity, unit_price, totalValue, itemId
+      min_quantity, max_quantity, unit_price, totalValue, 
+      item_type || 'raw_material', itemId
     ]);
 
     // Add price history entry if price changed

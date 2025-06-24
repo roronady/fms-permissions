@@ -30,7 +30,8 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ isOpen, onClose, onItemUp
     quantity: 0,
     min_quantity: 0,
     max_quantity: 1000,
-    unit_price: 0
+    unit_price: 0,
+    item_type: 'raw_material'
   });
 
   const [dropdownData, setDropdownData] = useState<DropdownData>({
@@ -68,7 +69,8 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ isOpen, onClose, onItemUp
         quantity: item.quantity || 0,
         min_quantity: item.min_quantity || 0,
         max_quantity: item.max_quantity || 1000,
-        unit_price: item.unit_price || 0
+        unit_price: item.unit_price || 0,
+        item_type: item.item_type || 'raw_material'
       });
     } catch (error) {
       console.error('Error loading item:', error);
@@ -199,6 +201,23 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ isOpen, onClose, onItemUp
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Enter description"
                   />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Item Type *
+                  </label>
+                  <select
+                    name="item_type"
+                    value={formData.item_type}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="raw_material">Raw Material</option>
+                    <option value="semi_finished_product">Semi-Finished Product</option>
+                    <option value="finished_product">Finished Product</option>
+                  </select>
                 </div>
               </div>
 
