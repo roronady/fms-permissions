@@ -48,7 +48,7 @@ export const createProductionOrdersTables = async () => {
     CREATE TABLE IF NOT EXISTS production_order_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       production_order_id INTEGER NOT NULL,
-      item_id INTEGER NOT NULL,
+      item_id INTEGER,
       item_name TEXT NOT NULL,
       item_sku TEXT,
       component_type TEXT DEFAULT 'item' CHECK (component_type IN ('item', 'bom')),
