@@ -588,8 +588,8 @@ router.get('/stats/overview', async (req, res) => {
         SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress_count,
         SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_count,
         SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_count,
-        SUM(planned_cost) as total_planned_cost,
-        SUM(actual_cost) as total_actual_cost,
+        COALESCE(SUM(planned_cost), 0) as total_planned_cost,
+        COALESCE(SUM(actual_cost), 0) as total_actual_cost,
         AVG(CASE WHEN completion_date IS NOT NULL AND start_date IS NOT NULL 
             THEN julianday(completion_date) - julianday(start_date) 
             ELSE NULL END) as avg_completion_time_days
