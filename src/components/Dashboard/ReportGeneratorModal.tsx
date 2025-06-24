@@ -11,23 +11,24 @@ interface ColumnOption {
   id: string;
   label: string;
   checked: boolean;
+  width: number; // Column width in pixels or percentage
 }
 
 const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({ isOpen, onClose }) => {
   const [columns, setColumns] = useState<ColumnOption[]>([
-    { id: 'name', label: 'Item Name', checked: true },
-    { id: 'sku', label: 'SKU', checked: true },
-    { id: 'description', label: 'Description', checked: false },
-    { id: 'category_name', label: 'Category', checked: true },
-    { id: 'subcategory_name', label: 'Subcategory', checked: false },
-    { id: 'unit_name', label: 'Unit', checked: true },
-    { id: 'location_name', label: 'Location', checked: true },
-    { id: 'supplier_name', label: 'Supplier', checked: false },
-    { id: 'quantity', label: 'Quantity', checked: true },
-    { id: 'min_quantity', label: 'Min Quantity', checked: false },
-    { id: 'max_quantity', label: 'Max Quantity', checked: false },
-    { id: 'unit_price', label: 'Unit Price', checked: true },
-    { id: 'total_value', label: 'Total Value', checked: true }
+    { id: 'name', label: 'Item Name', checked: true, width: 150 },
+    { id: 'sku', label: 'SKU', checked: true, width: 100 },
+    { id: 'description', label: 'Description', checked: false, width: 200 },
+    { id: 'category_name', label: 'Category', checked: true, width: 120 },
+    { id: 'subcategory_name', label: 'Subcategory', checked: false, width: 120 },
+    { id: 'unit_name', label: 'Unit', checked: true, width: 80 },
+    { id: 'location_name', label: 'Location', checked: true, width: 120 },
+    { id: 'supplier_name', label: 'Supplier', checked: false, width: 150 },
+    { id: 'quantity', label: 'Quantity', checked: true, width: 80 },
+    { id: 'min_quantity', label: 'Min Quantity', checked: false, width: 100 },
+    { id: 'max_quantity', label: 'Max Quantity', checked: false, width: 100 },
+    { id: 'unit_price', label: 'Unit Price', checked: true, width: 100 },
+    { id: 'total_value', label: 'Total Value', checked: true, width: 120 }
   ]);
 
   const [reportType, setReportType] = useState<'pdf' | 'csv'>('pdf');
@@ -39,6 +40,14 @@ const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({ isOpen, onC
     setColumns(prev => 
       prev.map(col => 
         col.id === id ? { ...col, checked: !col.checked } : col
+      )
+    );
+  };
+
+  const handleColumnWidthChange = (id: string, width: number) => {
+    setColumns(prev => 
+      prev.map(col => 
+        col.id === id ? { ...col, width } : col
       )
     );
   };
@@ -56,8 +65,11 @@ const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({ isOpen, onC
       setLoading(true);
       setError('');
       
-      // Get selected column IDs
-      const selectedColumns = columns.filter(col => col.checked).map(col => col.id);
+      // Get selected column IDs and their widths
+      const selectedColumns = columns.filter(col => col.checked).map(col => ({
+        id: col.id,
+        width: col.width
+      }));
       
       if (selectedColumns.length === 0) {
         setError('Please select at least one column for the report');
@@ -68,9 +80,16 @@ const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({ isOpen, onC
       // Generate the report based on type
       let blob;
       if (reportType === 'pdf') {
-        blob = await inventoryService.exportPDF(selectedColumns, reportTitle);
+        blob = await inventoryService.exportPDF(
+          selectedColumns.map(col => col.id), 
+          reportTitle,
+          selectedColumns.map(col => ({ id: col.id, width: col.width }))
+        );
       } else {
-        blob = await inventoryService.exportCSV(selectedColumns);
+        blob = await inventoryService.exportCSV(
+          selectedColumns.map(col => col.id),
+          selectedColumns.map(col => ({ id: col.id, width: col.width }))
+        );
       }
 
       // Create download link
@@ -185,17 +204,34 @@ const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({ isOpen, onC
             </div>
             
             <div className="bg-gray-50 p-4 rounded-lg max-h-60 overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-3">
                 {columns.map((column) => (
-                  <label key={column.id} className="inline-flex items-center">
-                    <input
-                      type="checkbox"
-                      className="form-checkbox h-5 w-5 text-blue-600 rounded"
-                      checked={column.checked}
-                      onChange={() => handleColumnToggle(column.id)}
-                    />
-                    <span className="ml-2 text-gray-700">{column.label}</span>
-                  </label>
+                  <div key={column.id} className="flex items-center justify-between border-b border-gray-200 pb-2">
+                    <label className="inline-flex items-center">
+                      <input
+                        type="checkbox"
+                        className="form-checkbox h-5 w-5 text-blue-600 rounded"
+                        checked={column.checked}
+                        onChange={() => handleColumnToggle(column.id)}
+                      />
+                      <span className="ml-2 text-gray-700">{column.label}</span>
+                    </label>
+                    
+                    {column.checked && (
+                      <div className="flex items-center">
+                        <span className="text-xs text-gray-500 mr-2">Width:</span>
+                        <input
+                          type="number"
+                          min="50"
+                          max="300"
+                          value={column.width}
+                          onChange={(e) => handleColumnWidthChange(column.id, parseInt(e.target.value) || 100)}
+                          className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <span className="text-xs text-gray-500 ml-1">px</span>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
@@ -208,6 +244,11 @@ const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({ isOpen, onC
               Your report will include {columns.filter(c => c.checked).length} columns:
               {' '}{columns.filter(c => c.checked).map(c => c.label).join(', ')}
             </p>
+            <div className="mt-2 pt-2 border-t border-blue-100">
+              <p className="text-xs text-blue-600">
+                Column widths will be applied to the generated report.
+              </p>
+            </div>
           </div>
         </div>
 

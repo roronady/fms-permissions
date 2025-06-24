@@ -20,6 +20,23 @@ export const handleInventoryExport = async (req, res, format, options = {}) => {
     'max_quantity', 'unit_price', 'total_value'
   ];
   
+  // Get column widths if provided
+  let columnWidths = {};
+  if (req.query.columnWidths) {
+    try {
+      const widthsArray = JSON.parse(req.query.columnWidths);
+      if (Array.isArray(widthsArray)) {
+        widthsArray.forEach(col => {
+          if (col.id && col.width) {
+            columnWidths[col.id] = col.width;
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error parsing column widths:', error);
+    }
+  }
+  
   // Build SQL query with selected columns
   let selectColumns = `
     i.name, i.sku, i.description, i.quantity, i.min_quantity, 
@@ -48,14 +65,15 @@ export const handleInventoryExport = async (req, res, format, options = {}) => {
   `);
 
   if (format === 'csv') {
-    const csvData = await exportToCSV(items || [], columns);
+    const csvData = await exportToCSV(items || [], columns, columnWidths);
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename=inventory_export.csv');
     res.send(csvData);
   } else if (format === 'pdf') {
     const pdfOptions = {
       columns: columns,
-      title: options.title || 'Inventory Report'
+      title: options.title || 'Inventory Report',
+      columnWidths: columnWidths
     };
     const pdfBuffer = await generatePDF(items || [], pdfOptions);
     res.setHeader('Content-Type', 'application/pdf');

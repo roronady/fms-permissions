@@ -14,6 +14,14 @@ export const generatePDF = async (items, options = {}) => {
       const columns = options.columns || [
         'name', 'sku', 'category_name', 'quantity', 'unit_price', 'total_value', 'location_name'
       ];
+      
+      // Get column widths if provided
+      let columnWidths = {};
+      if (options.columnWidths && Array.isArray(options.columnWidths)) {
+        options.columnWidths.forEach(col => {
+          columnWidths[col.id] = col.width;
+        });
+      }
 
       // Map column IDs to display names
       const columnLabels = {
@@ -53,19 +61,41 @@ export const generatePDF = async (items, options = {}) => {
       const tableTop = doc.y;
       const itemHeight = 20;
       
-      // Calculate column positions based on selected columns
+      // Calculate column positions based on selected columns and widths
       const columnPositions = {};
       const pageWidth = doc.page.width - 100; // 50px margin on each side
-      const columnWidth = pageWidth / columns.length;
       
-      columns.forEach((col, index) => {
-        columnPositions[col] = 50 + (index * columnWidth);
+      // Calculate total width of all columns with specified widths
+      let totalSpecifiedWidth = 0;
+      let unspecifiedColumns = 0;
+      
+      columns.forEach(col => {
+        if (columnWidths[col]) {
+          totalSpecifiedWidth += columnWidths[col];
+        } else {
+          unspecifiedColumns++;
+        }
+      });
+      
+      // Calculate default width for columns without specified width
+      const defaultColumnWidth = unspecifiedColumns > 0 ? 
+        Math.max(80, (pageWidth - totalSpecifiedWidth) / unspecifiedColumns) : 0;
+      
+      // Set column positions
+      let currentPosition = 50;
+      columns.forEach(col => {
+        const width = columnWidths[col] || defaultColumnWidth;
+        columnPositions[col] = currentPosition;
+        currentPosition += width;
       });
       
       // Draw header
       doc.fontSize(10).font('Helvetica-Bold');
       columns.forEach(col => {
-        doc.text(columnLabels[col] || col, columnPositions[col], tableTop);
+        doc.text(columnLabels[col] || col, columnPositions[col], tableTop, {
+          width: columnWidths[col] || defaultColumnWidth,
+          align: 'left'
+        });
       });
 
       // Draw header line
@@ -85,7 +115,10 @@ export const generatePDF = async (items, options = {}) => {
           // Redraw header on new page
           doc.fontSize(10).font('Helvetica-Bold');
           columns.forEach(col => {
-            doc.text(columnLabels[col] || col, columnPositions[col], currentY);
+            doc.text(columnLabels[col] || col, columnPositions[col], currentY, {
+              width: columnWidths[col] || defaultColumnWidth,
+              align: 'left'
+            });
           });
           
           doc.moveTo(50, currentY + 15)
@@ -99,31 +132,32 @@ export const generatePDF = async (items, options = {}) => {
         // Draw each column value
         columns.forEach(col => {
           let value = '';
+          const width = columnWidths[col] || defaultColumnWidth;
           
           switch(col) {
             case 'name':
-              value = item.name?.substring(0, 15) || '';
+              value = item.name?.substring(0, 30) || '';
               break;
             case 'sku':
               value = item.sku || '';
               break;
             case 'description':
-              value = item.description?.substring(0, 20) || '';
+              value = item.description?.substring(0, 40) || '';
               break;
             case 'category_name':
-              value = item.category_name?.substring(0, 10) || '';
+              value = item.category_name || '';
               break;
             case 'subcategory_name':
-              value = item.subcategory_name?.substring(0, 10) || '';
+              value = item.subcategory_name || '';
               break;
             case 'unit_name':
               value = item.unit_name || '';
               break;
             case 'location_name':
-              value = item.location_name?.substring(0, 12) || '';
+              value = item.location_name || '';
               break;
             case 'supplier_name':
-              value = item.supplier_name?.substring(0, 12) || '';
+              value = item.supplier_name || '';
               break;
             case 'quantity':
               value = item.quantity?.toString() || '0';
@@ -144,7 +178,10 @@ export const generatePDF = async (items, options = {}) => {
               value = item[col]?.toString() || '';
           }
           
-          doc.text(value, columnPositions[col], currentY);
+          doc.text(value, columnPositions[col], currentY, {
+            width: width,
+            align: 'left'
+          });
         });
 
         currentY += itemHeight;

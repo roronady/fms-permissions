@@ -128,14 +128,25 @@ export const inventoryService = {
     }
   },
 
-  async exportCSV(columns?: string[]) {
+  async exportCSV(columns?: string[], columnWidths?: Array<{id: string, width: number}>) {
     const token = localStorage.getItem('token');
     let url = `${API_BASE}/inventory/export/csv`;
     
+    // Add parameters
+    const params = new URLSearchParams();
+    
     // Add columns parameter if provided
     if (columns && columns.length > 0) {
-      const columnsParam = columns.join(',');
-      url += `?columns=${encodeURIComponent(columnsParam)}`;
+      params.append('columns', columns.join(','));
+    }
+    
+    // Add column widths if provided
+    if (columnWidths && columnWidths.length > 0) {
+      params.append('columnWidths', JSON.stringify(columnWidths));
+    }
+    
+    if (params.toString()) {
+      url += `?${params.toString()}`;
     }
     
     const response = await fetch(url, {
@@ -167,17 +178,26 @@ export const inventoryService = {
     return handleResponse(response);
   },
 
-  async exportPDF(columns?: string[], title?: string) {
+  async exportPDF(columns?: string[], title?: string, columnWidths?: Array<{id: string, width: number}>) {
     const token = localStorage.getItem('token');
     let url = `${API_BASE}/inventory/export/pdf`;
     
-    // Add parameters if provided
+    // Add parameters
     const params = new URLSearchParams();
+    
+    // Add columns parameter if provided
     if (columns && columns.length > 0) {
       params.append('columns', columns.join(','));
     }
+    
+    // Add title if provided
     if (title) {
       params.append('title', title);
+    }
+    
+    // Add column widths if provided
+    if (columnWidths && columnWidths.length > 0) {
+      params.append('columnWidths', JSON.stringify(columnWidths));
     }
     
     if (params.toString()) {
@@ -201,11 +221,12 @@ export const inventoryService = {
     columns: string[];
     title: string;
     format: 'pdf' | 'csv';
+    columnWidths?: Array<{id: string, width: number}>;
   }) {
     if (options.format === 'pdf') {
-      return this.exportPDF(options.columns, options.title);
+      return this.exportPDF(options.columns, options.title, options.columnWidths);
     } else {
-      return this.exportCSV(options.columns);
+      return this.exportCSV(options.columns, options.columnWidths);
     }
   }
 };

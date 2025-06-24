@@ -4,10 +4,15 @@ import createCsvWriter from 'csv-writer';
 import { runStatement, runQuery } from '../database/connection.js';
 import { logAuditTrail } from './audit.js';
 
-export const exportToCSV = async (data, columns) => {
+export const exportToCSV = async (data, columns, columnWidths) => {
   // Define headers based on selected columns or use defaults
   const headers = columns ? columns.map(col => {
-    return { id: col, title: getColumnTitle(col) };
+    const width = columnWidths && columnWidths[col] ? columnWidths[col] : null;
+    return { 
+      id: col, 
+      title: getColumnTitle(col),
+      width: width // Include width if provided
+    };
   }) : [
     { id: 'name', title: 'Name' },
     { id: 'sku', title: 'SKU' },

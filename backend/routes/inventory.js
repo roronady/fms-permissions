@@ -379,10 +379,11 @@ router.get('/dropdown-data', async (req, res) => {
 // Export to CSV
 router.get('/export/csv', async (req, res) => {
   try {
-    const { columns, title } = req.query;
+    const { columns, title, columnWidths } = req.query;
     const options = {
       columns: columns ? columns.split(',') : undefined,
-      title: title || undefined
+      title: title || undefined,
+      columnWidths: columnWidths ? JSON.parse(columnWidths) : undefined
     };
     
     await handleInventoryExport(req, res, 'csv', options);
@@ -405,10 +406,11 @@ router.post('/import/csv', async (req, res) => {
 // Generate PDF report
 router.get('/export/pdf', async (req, res) => {
   try {
-    const { columns, title } = req.query;
+    const { columns, title, columnWidths } = req.query;
     const options = {
       columns: columns ? columns.split(',') : undefined,
-      title: title || undefined
+      title: title || undefined,
+      columnWidths: columnWidths ? JSON.parse(columnWidths) : undefined
     };
     
     await handleInventoryExport(req, res, 'pdf', options);
