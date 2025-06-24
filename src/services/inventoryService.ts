@@ -128,9 +128,17 @@ export const inventoryService = {
     }
   },
 
-  async exportCSV() {
+  async exportCSV(columns?: string[]) {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/inventory/export/csv`, {
+    let url = `${API_BASE}/inventory/export/csv`;
+    
+    // Add columns parameter if provided
+    if (columns && columns.length > 0) {
+      const columnsParam = columns.join(',');
+      url += `?columns=${encodeURIComponent(columnsParam)}`;
+    }
+    
+    const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -159,9 +167,24 @@ export const inventoryService = {
     return handleResponse(response);
   },
 
-  async exportPDF() {
+  async exportPDF(columns?: string[], title?: string) {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/inventory/export/pdf`, {
+    let url = `${API_BASE}/inventory/export/pdf`;
+    
+    // Add parameters if provided
+    const params = new URLSearchParams();
+    if (columns && columns.length > 0) {
+      params.append('columns', columns.join(','));
+    }
+    if (title) {
+      params.append('title', title);
+    }
+    
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+    
+    const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -173,4 +196,16 @@ export const inventoryService = {
 
     return response.blob();
   },
+
+  async generateCustomReport(options: {
+    columns: string[];
+    title: string;
+    format: 'pdf' | 'csv';
+  }) {
+    if (options.format === 'pdf') {
+      return this.exportPDF(options.columns, options.title);
+    } else {
+      return this.exportCSV(options.columns);
+    }
+  }
 };

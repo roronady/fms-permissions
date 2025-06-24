@@ -379,7 +379,13 @@ router.get('/dropdown-data', async (req, res) => {
 // Export to CSV
 router.get('/export/csv', async (req, res) => {
   try {
-    await handleInventoryExport(req, res, 'csv');
+    const { columns, title } = req.query;
+    const options = {
+      columns: columns ? columns.split(',') : undefined,
+      title: title || undefined
+    };
+    
+    await handleInventoryExport(req, res, 'csv', options);
   } catch (error) {
     console.error('Error exporting CSV:', error);
     res.status(500).json({ error: 'Failed to export CSV' });
@@ -399,7 +405,13 @@ router.post('/import/csv', async (req, res) => {
 // Generate PDF report
 router.get('/export/pdf', async (req, res) => {
   try {
-    await handleInventoryExport(req, res, 'pdf');
+    const { columns, title } = req.query;
+    const options = {
+      columns: columns ? columns.split(',') : undefined,
+      title: title || undefined
+    };
+    
+    await handleInventoryExport(req, res, 'pdf', options);
   } catch (error) {
     console.error('Error generating PDF:', error);
     res.status(500).json({ error: 'Failed to generate PDF' });

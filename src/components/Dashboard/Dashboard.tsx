@@ -20,6 +20,7 @@ import { requisitionService } from '../../services/requisitionService';
 import { purchaseOrderService } from '../../services/purchaseOrderService';
 import { useSocket } from '../../contexts/SocketContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+import ReportGeneratorModal from './ReportGeneratorModal';
 
 interface DashboardStats {
   totalItems: number;
@@ -43,6 +44,7 @@ const Dashboard: React.FC = () => {
   const [recentItems, setRecentItems] = useState<any[]>([]);
   const [recentRequisitions, setRecentRequisitions] = useState<any[]>([]);
   const [recentPOs, setRecentPOs] = useState<any[]>([]);
+  const [showReportModal, setShowReportModal] = useState(false);
   const { socket } = useSocket();
   const navigate = useNavigate();
   const location = useLocation();
@@ -130,22 +132,8 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleExportPDF = async () => {
-    try {
-      const blob = await inventoryService.exportPDF();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = 'inventory_report.pdf';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Error generating report:', error);
-      alert('Failed to generate report');
-    }
+  const handleGenerateReport = () => {
+    setShowReportModal(true);
   };
 
   // Navigate to inventory page with state to open add item modal
@@ -371,7 +359,9 @@ const Dashboard: React.FC = () => {
           <div className="h-64 flex items-center justify-center text-gray-500">
             <div className="text-center">
               <BarChart3 className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-              <p>Chart visualization coming soon</p>
+              <p className="mt-1 text-sm text-gray-500">
+                Chart visualization coming soon
+              </p>
             </div>
           </div>
         </div>
@@ -403,7 +393,7 @@ const Dashboard: React.FC = () => {
             <span className="text-gray-600 group-hover:text-purple-600">Create PO</span>
           </button>
           <button 
-            onClick={handleExportPDF}
+            onClick={handleGenerateReport}
             className="flex items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-colors group"
           >
             <FileText className="h-6 w-6 text-gray-400 group-hover:text-orange-500 mr-2" />
@@ -411,6 +401,12 @@ const Dashboard: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Report Generator Modal */}
+      <ReportGeneratorModal 
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+      />
     </div>
   );
 };

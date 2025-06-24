@@ -12,18 +12,35 @@ export const calculateTotalValue = (quantity, unitPrice, lastPrice, averagePrice
 };
 
 // Handle inventory export (CSV or PDF)
-export const handleInventoryExport = async (req, res, format) => {
+export const handleInventoryExport = async (req, res, format, options = {}) => {
+  // Get columns to include
+  const columns = options.columns || [
+    'name', 'sku', 'description', 'category', 'subcategory', 
+    'unit', 'location', 'supplier', 'quantity', 'min_quantity', 
+    'max_quantity', 'unit_price', 'total_value'
+  ];
+  
+  // Build SQL query with selected columns
+  let selectColumns = `
+    i.name, i.sku, i.quantity, i.min_quantity, 
+    i.max_quantity, i.unit_price,
+    COALESCE(
+      (SELECT ROUND(AVG(price), 2) FROM price_history WHERE item_id = i.id),
+      (SELECT price FROM price_history WHERE item_id = i.id ORDER BY created_at DESC LIMIT 1),
+      i.unit_price
+    ) * i.quantity as total_value
+  `;
+  
+  // Add optional columns based on selection
+  if (columns.includes('description')) selectColumns += ', i.description';
+  if (columns.includes('category')) selectColumns += ', c.name as category';
+  if (columns.includes('subcategory')) selectColumns += ', sc.name as subcategory';
+  if (columns.includes('unit')) selectColumns += ', u.name as unit';
+  if (columns.includes('location')) selectColumns += ', l.name as location';
+  if (columns.includes('supplier')) selectColumns += ', s.name as supplier';
+  
   const items = await runQuery(`
-    SELECT 
-      i.name, i.sku, i.description, i.quantity, i.min_quantity, 
-      i.max_quantity, i.unit_price,
-      COALESCE(
-        (SELECT ROUND(AVG(price), 2) FROM price_history WHERE item_id = i.id),
-        (SELECT price FROM price_history WHERE item_id = i.id ORDER BY created_at DESC LIMIT 1),
-        i.unit_price
-      ) * i.quantity as total_value,
-      c.name as category, sc.name as subcategory,
-      u.name as unit, l.name as location, s.name as supplier
+    SELECT ${selectColumns}
     FROM inventory_items i
     LEFT JOIN categories c ON i.category_id = c.id
     LEFT JOIN subcategories sc ON i.subcategory_id = sc.id
@@ -34,12 +51,16 @@ export const handleInventoryExport = async (req, res, format) => {
   `);
 
   if (format === 'csv') {
-    const csvData = await exportToCSV(items || []);
+    const csvData = await exportToCSV(items || [], columns);
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename=inventory_export.csv');
     res.send(csvData);
   } else if (format === 'pdf') {
-    const pdfBuffer = await generatePDF(items || []);
+    const pdfOptions = {
+      columns: columns,
+      title: options.title || 'Inventory Report'
+    };
+    const pdfBuffer = await generatePDF(items || [], pdfOptions);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=inventory_report.pdf');
     res.send(pdfBuffer);
