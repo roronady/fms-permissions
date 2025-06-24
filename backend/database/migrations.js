@@ -1,6 +1,6 @@
 import { runStatement, runQuery } from './connection.js';
 import bcrypt from 'bcryptjs';
-import { addSampleInventoryData } from './sample-data.js';
+import { addSampleInventoryData, addSampleBOMData } from './sample-data.js';
 import { createInitialSchema } from './migrations/initial-schema.js';
 import { createInventoryTables } from './migrations/inventory-tables.js';
 import { createAuditTables } from './migrations/audit-tables.js';
@@ -116,6 +116,9 @@ export const runMigrations = async () => {
 
     // Add sample inventory data
     await addSampleInventoryData();
+
+    // Add sample BOM data AFTER admin user is created
+    await addSampleBOMData();
 
     console.log('All migrations completed successfully');
   } catch (error) {
