@@ -6,8 +6,7 @@ import {
   MapPin, 
   Building2, 
   Ruler,
-  Building,
-  FileText
+  Building
 } from 'lucide-react';
 import CategoriesTab from './CategoriesTab';
 import SubcategoriesTab from './SubcategoriesTab';
@@ -15,7 +14,6 @@ import UnitsTab from './UnitsTab';
 import LocationsTab from './LocationsTab';
 import SuppliersTab from './SuppliersTab';
 import DepartmentsTab from './DepartmentsTab';
-import BOMsTab from './BOMsTab';
 
 const MasterDataManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState('categories');
@@ -26,8 +24,7 @@ const MasterDataManagement: React.FC = () => {
     { id: 'units', name: 'Units', icon: Ruler },
     { id: 'locations', name: 'Locations', icon: MapPin },
     { id: 'suppliers', name: 'Suppliers', icon: Building2 },
-    { id: 'departments', name: 'Departments', icon: Building },
-    { id: 'boms', name: 'Bill of Materials', icon: FileText },
+    { id: 'departments', name: 'Departments', icon: Building }
   ];
 
   const renderTabContent = () => {
@@ -44,8 +41,6 @@ const MasterDataManagement: React.FC = () => {
         return <SuppliersTab />;
       case 'departments':
         return <DepartmentsTab />;
-      case 'boms':
-        return <BOMsTab />;
       default:
         return <CategoriesTab />;
     }

@@ -14,7 +14,8 @@ import {
   Calendar,
   DollarSign,
   Play,
-  FileText
+  FileText,
+  Layers
 } from 'lucide-react';
 import { productionOrderService } from '../../services/productionService';
 import { useSocket } from '../../contexts/SocketContext';
@@ -24,6 +25,7 @@ import ViewProductionOrderModal from './ViewProductionOrderModal';
 import EditProductionOrderModal from './EditProductionOrderModal';
 import IssueMaterialsModal from './IssueMaterialsModal';
 import CompleteProductionModal from './CompleteProductionModal';
+import BOMsTab from '../MasterData/BOMsTab';
 import { useLocation } from 'react-router-dom';
 
 interface ProductionOrder {
@@ -53,6 +55,7 @@ interface ProductionOrder {
 }
 
 const Production: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'orders' | 'boms'>('orders');
   const [productionOrders, setProductionOrders] = useState<ProductionOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -86,8 +89,10 @@ const Production: React.FC = () => {
   const location = useLocation();
 
   useEffect(() => {
-    loadProductionOrders();
-    loadStats();
+    if (activeTab === 'orders') {
+      loadProductionOrders();
+      loadStats();
+    }
     
     // Check if we should open modals from navigation state
     if (location.state) {
@@ -101,7 +106,7 @@ const Production: React.FC = () => {
       // Clear the state to prevent reopening on page refresh
       window.history.replaceState({}, document.title);
     }
-  }, [searchTerm, statusFilter, pagination.page, location.state]);
+  }, [searchTerm, statusFilter, pagination.page, location.state, activeTab]);
 
   useEffect(() => {
     if (socket) {
@@ -278,339 +283,382 @@ const Production: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Production Orders</h1>
-          <p className="text-gray-600">Manage manufacturing production orders</p>
+          <h1 className="text-2xl font-bold text-gray-900">Production Management</h1>
+          <p className="text-gray-600">Manage manufacturing production orders and bills of materials</p>
         </div>
         <div className="flex space-x-3">
           <button
-            onClick={loadProductionOrders}
+            onClick={() => activeTab === 'orders' ? loadProductionOrders() : null}
             className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Production Order
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center">
-            <Factory className="w-8 h-8 text-blue-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Orders</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.total_orders}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center">
-            <Play className="w-8 h-8 text-blue-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">In Progress</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.in_progress_count}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center">
-            <CheckCircle className="w-8 h-8 text-green-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Completed</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.completed_count}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center">
-            <DollarSign className="w-8 h-8 text-purple-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Cost</p>
-              <p className="text-2xl font-bold text-gray-900">${stats.total_planned_cost.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search production orders..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-          <div className="sm:w-48">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          {activeTab === 'orders' && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              <option value="all">All Status</option>
-              <option value="draft">Draft</option>
-              <option value="planned">Planned</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
+              <Plus className="h-4 w-4 mr-2" />
+              New Production Order
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Production Orders Table */}
+      {/* Tabs */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Order Number
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Product
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      BOM
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Priority
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Quantity
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Planned Cost
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Due Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {productionOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{order.order_number}</div>
-                          <div className="text-sm text-gray-500">{order.title}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{order.finished_product_name || 'N/A'}</div>
-                          <div className="text-sm text-gray-500">{order.finished_product_sku || ''}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {order.bom_name || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(order.priority)}`}>
-                          {order.priority}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          {getStatusIcon(order.status)}
-                          <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                            {getStatusText(order.status)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {order.quantity}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${order.planned_cost.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center text-sm text-gray-900">
-                          <Calendar className="h-4 w-4 text-gray-400 mr-2" />
-                          {order.due_date ? new Date(order.due_date).toLocaleDateString() : 'Not set'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-1">
-                          {/* View Button - Always available */}
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8 px-6 overflow-x-auto" aria-label="Tabs">
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`${
+                activeTab === 'orders'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center transition-colors`}
+            >
+              <Factory className="h-5 w-5 mr-2" />
+              Production Orders
+            </button>
+            <button
+              onClick={() => setActiveTab('boms')}
+              className={`${
+                activeTab === 'boms'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center transition-colors`}
+            >
+              <Layers className="h-5 w-5 mr-2" />
+              Bills of Materials
+            </button>
+          </nav>
+        </div>
+
+        {/* Tab Content */}
+        <div className="p-6">
+          {activeTab === 'orders' ? (
+            <>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                  <div className="flex items-center">
+                    <Factory className="w-8 h-8 text-blue-600" />
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Total Orders</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.total_orders}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                  <div className="flex items-center">
+                    <Play className="w-8 h-8 text-blue-600" />
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">In Progress</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.in_progress_count}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                  <div className="flex items-center">
+                    <CheckCircle className="w-8 h-8 text-green-600" />
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Completed</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.completed_count}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-lg shadow-sm border">
+                  <div className="flex items-center">
+                    <DollarSign className="w-8 h-8 text-purple-600" />
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">Total Cost</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        ${stats.total_planned_cost ? stats.total_planned_cost.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0.00'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filters */}
+              <div className="bg-white p-6 rounded-lg shadow-sm border mb-6">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        placeholder="Search production orders..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                  <div className="sm:w-48">
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="draft">Draft</option>
+                      <option value="planned">Planned</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Production Orders Table */}
+              <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+                {loading ? (
+                  <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Order Number
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Product
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              BOM
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Priority
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Status
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Quantity
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Planned Cost
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Due Date
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {productionOrders.map((order) => (
+                            <tr key={order.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{order.order_number}</div>
+                                  <div className="text-sm text-gray-500">{order.title}</div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{order.finished_product_name || 'N/A'}</div>
+                                  <div className="text-sm text-gray-500">{order.finished_product_sku || ''}</div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {order.bom_name || 'N/A'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(order.priority)}`}>
+                                  {order.priority}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  {getStatusIcon(order.status)}
+                                  <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                                    {getStatusText(order.status)}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {order.quantity}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                ${order.planned_cost ? order.planned_cost.toFixed(2) : '0.00'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center text-sm text-gray-900">
+                                  <Calendar className="h-4 w-4 text-gray-400 mr-2" />
+                                  {order.due_date ? new Date(order.due_date).toLocaleDateString() : 'Not set'}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div className="flex space-x-1">
+                                  {/* View Button - Always available */}
+                                  <button
+                                    onClick={() => handleView(order)}
+                                    className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
+                                    title="View Details"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </button>
+
+                                  {/* Edit Button */}
+                                  {canEdit(order) && (
+                                    <button
+                                      onClick={() => handleEdit(order)}
+                                      className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
+                                      title="Edit Order"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </button>
+                                  )}
+
+                                  {/* Status Transition Buttons */}
+                                  {order.status === 'draft' && (
+                                    <button
+                                      onClick={() => handleStatusUpdate(order, 'planned')}
+                                      className="text-purple-600 hover:text-purple-900 p-1 rounded hover:bg-purple-50 transition-colors"
+                                      title="Move to Planned"
+                                    >
+                                      <Calendar className="h-4 w-4" />
+                                    </button>
+                                  )}
+
+                                  {/* Issue Materials Button */}
+                                  {canIssueMaterials(order) && (
+                                    <button
+                                      onClick={() => handleIssueMaterials(order)}
+                                      className="text-orange-600 hover:text-orange-900 p-1 rounded hover:bg-orange-50 transition-colors"
+                                      title="Issue Materials"
+                                    >
+                                      <Package className="h-4 w-4" />
+                                    </button>
+                                  )}
+
+                                  {/* Complete Production Button */}
+                                  {canCompleteProduction(order) && (
+                                    <button
+                                      onClick={() => handleCompleteProduction(order)}
+                                      className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
+                                      title="Complete Production"
+                                    >
+                                      <CheckCircle className="h-4 w-4" />
+                                    </button>
+                                  )}
+
+                                  {/* Delete Button */}
+                                  {canDelete(order) && (
+                                    <button
+                                      onClick={() => handleDelete(order)}
+                                      className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
+                                      title="Delete Order"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  )}
+
+                                  {/* Cancel Button */}
+                                  {['draft', 'planned', 'in_progress'].includes(order.status) && (
+                                    <button
+                                      onClick={() => handleStatusUpdate(order, 'cancelled')}
+                                      className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
+                                      title="Cancel Order"
+                                    >
+                                      <XCircle className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {productionOrders.length === 0 && (
+                      <div className="text-center py-12">
+                        <Factory className="mx-auto h-12 w-12 text-gray-400" />
+                        <h3 className="mt-2 text-sm font-medium text-gray-900">No production orders found</h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {searchTerm || statusFilter !== 'all' 
+                            ? 'Try adjusting your search or filter criteria.'
+                            : 'Get started by creating your first production order.'
+                          }
+                        </p>
+                        <button
+                          onClick={() => setShowCreateModal(true)}
+                          className="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create First Production Order
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Pagination */}
+                    {pagination.pages > 1 && (
+                      <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                        <div className="flex-1 flex justify-between sm:hidden">
                           <button
-                            onClick={() => handleView(order)}
-                            className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
-                            title="View Details"
+                            onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                            disabled={pagination.page === 1}
+                            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                           >
-                            <Eye className="h-4 w-4" />
+                            Previous
                           </button>
-
-                          {/* Edit Button */}
-                          {canEdit(order) && (
-                            <button
-                              onClick={() => handleEdit(order)}
-                              className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
-                              title="Edit Order"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                          )}
-
-                          {/* Status Transition Buttons */}
-                          {order.status === 'draft' && (
-                            <button
-                              onClick={() => handleStatusUpdate(order, 'planned')}
-                              className="text-purple-600 hover:text-purple-900 p-1 rounded hover:bg-purple-50 transition-colors"
-                              title="Move to Planned"
-                            >
-                              <Calendar className="h-4 w-4" />
-                            </button>
-                          )}
-
-                          {/* Issue Materials Button */}
-                          {canIssueMaterials(order) && (
-                            <button
-                              onClick={() => handleIssueMaterials(order)}
-                              className="text-orange-600 hover:text-orange-900 p-1 rounded hover:bg-orange-50 transition-colors"
-                              title="Issue Materials"
-                            >
-                              <Package className="h-4 w-4" />
-                            </button>
-                          )}
-
-                          {/* Complete Production Button */}
-                          {canCompleteProduction(order) && (
-                            <button
-                              onClick={() => handleCompleteProduction(order)}
-                              className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
-                              title="Complete Production"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                            </button>
-                          )}
-
-                          {/* Delete Button */}
-                          {canDelete(order) && (
-                            <button
-                              onClick={() => handleDelete(order)}
-                              className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                              title="Delete Order"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-
-                          {/* Cancel Button */}
-                          {['draft', 'planned', 'in_progress'].includes(order.status) && (
-                            <button
-                              onClick={() => handleStatusUpdate(order, 'cancelled')}
-                              className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                              title="Cancel Order"
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
+                            disabled={pagination.page === pagination.pages}
+                            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            Next
+                          </button>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {productionOrders.length === 0 && (
-              <div className="text-center py-12">
-                <Factory className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No production orders found</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {searchTerm || statusFilter !== 'all' 
-                    ? 'Try adjusting your search or filter criteria.'
-                    : 'Get started by creating your first production order.'
-                  }
-                </p>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create First Production Order
-                </button>
+                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm text-gray-700">
+                              Showing <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> to{' '}
+                              <span className="font-medium">
+                                {Math.min(pagination.page * pagination.limit, pagination.total)}
+                              </span>{' '}
+                              of <span className="font-medium">{pagination.total}</span> results
+                            </p>
+                          </div>
+                          <div>
+                            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                              <button
+                                onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                                disabled={pagination.page === 1}
+                                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                Previous
+                              </button>
+                              <button
+                                onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
+                                disabled={pagination.page === pagination.pages}
+                                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                Next
+                              </button>
+                            </nav>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-            )}
-
-            {/* Pagination */}
-            {pagination.pages > 1 && (
-              <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                <div className="flex-1 flex justify-between sm:hidden">
-                  <button
-                    onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                    disabled={pagination.page === 1}
-                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
-                    disabled={pagination.page === pagination.pages}
-                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Next
-                  </button>
-                </div>
-                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      Showing <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> to{' '}
-                      <span className="font-medium">
-                        {Math.min(pagination.page * pagination.limit, pagination.total)}
-                      </span>{' '}
-                      of <span className="font-medium">{pagination.total}</span> results
-                    </p>
-                  </div>
-                  <div>
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                      <button
-                        onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                        disabled={pagination.page === 1}
-                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
-                        disabled={pagination.page === pagination.pages}
-                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        Next
-                      </button>
-                    </nav>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+            </>
+          ) : (
+            <BOMsTab />
+          )}
+        </div>
       </div>
 
       {/* Modals */}
