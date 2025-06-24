@@ -147,6 +147,25 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const navigateToInventory = () => navigate('/inventory');
+  const navigateToRequisitions = () => navigate('/requisitions');
+  const navigateToPurchaseOrders = () => navigate('/purchase-orders');
+
+  const handleAddItem = () => {
+    navigate('/inventory');
+    // We'll let the Inventory component handle showing the modal
+  };
+
+  const handleNewRequisition = () => {
+    navigate('/requisitions');
+    // We'll let the Requisitions component handle showing the modal
+  };
+
+  const handleCreatePO = () => {
+    navigate('/purchase-orders');
+    // We'll let the PurchaseOrders component handle showing the modal
+  };
+
   const statCards = [
     {
       title: 'Total Items',
@@ -157,7 +176,7 @@ const Dashboard: React.FC = () => {
     },
     {
       title: 'Total Value',
-      value: `$${stats.totalValue.toLocaleString()}`,
+      value: `$${stats.totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
       icon: DollarSign,
       color: 'bg-green-500',
       change: '+8%'
@@ -242,7 +261,7 @@ const Dashboard: React.FC = () => {
                       {req.status}
                     </span>
                     <button 
-                      onClick={() => navigate('/requisitions')}
+                      onClick={() => navigate(`/requisitions`)}
                       className="ml-2 text-blue-600 hover:text-blue-800"
                     >
                       <Eye className="h-4 w-4" />
@@ -256,7 +275,7 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="mt-4">
             <button
-              onClick={() => navigate('/requisitions')}
+              onClick={navigateToRequisitions}
               className="w-full text-center text-blue-600 hover:text-blue-800 text-sm font-medium"
             >
               View All Requisitions
@@ -294,7 +313,7 @@ const Dashboard: React.FC = () => {
                        po.status.charAt(0).toUpperCase() + po.status.slice(1)}
                     </span>
                     <button 
-                      onClick={() => navigate('/purchase-orders')}
+                      onClick={() => navigate(`/purchase-orders`)}
                       className="ml-2 text-blue-600 hover:text-blue-800"
                     >
                       <Eye className="h-4 w-4" />
@@ -308,7 +327,7 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="mt-4">
             <button
-              onClick={() => navigate('/purchase-orders')}
+              onClick={navigateToPurchaseOrders}
               className="w-full text-center text-blue-600 hover:text-blue-800 text-sm font-medium"
             >
               View All Purchase Orders
@@ -362,21 +381,21 @@ const Dashboard: React.FC = () => {
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <button 
-            onClick={() => navigate('/inventory')}
+            onClick={handleAddItem}
             className="flex items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors group"
           >
             <Package className="h-6 w-6 text-gray-400 group-hover:text-blue-500 mr-2" />
             <span className="text-gray-600 group-hover:text-blue-600">Add New Item</span>
           </button>
           <button 
-            onClick={() => navigate('/requisitions')}
+            onClick={handleNewRequisition}
             className="flex items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors group"
           >
             <ClipboardList className="h-6 w-6 text-gray-400 group-hover:text-green-500 mr-2" />
             <span className="text-gray-600 group-hover:text-green-600">New Requisition</span>
           </button>
           <button 
-            onClick={() => navigate('/purchase-orders')}
+            onClick={handleCreatePO}
             className="flex items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-colors group"
           >
             <ShoppingCart className="h-6 w-6 text-gray-400 group-hover:text-purple-500 mr-2" />
