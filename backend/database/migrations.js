@@ -114,7 +114,7 @@ export const runMigrations = async () => {
       console.log('Default admin user created');
     }
 
-    // Add sample inventory data
+    // Add sample inventory data - this will check if data exists first
     await addSampleInventoryData();
 
     // Add sample BOM data AFTER admin user is created

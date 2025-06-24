@@ -5,7 +5,8 @@ export const createSubcategoriesData = async () => {
   const categoriesSQL = `
     INSERT OR IGNORE INTO categories (name, description) VALUES 
     ('Electronics', 'Electronic devices and components'),
-    ('Office Supplies', 'Office and administrative supplies');
+    ('Office Supplies', 'Office and administrative supplies'),
+    ('Raw Materials', 'Raw materials for production');
   `;
 
   await runStatement(categoriesSQL);
@@ -17,13 +18,17 @@ export const createSubcategoriesData = async () => {
   const officeSuppliesCategory = await runQuery(
     "SELECT id FROM categories WHERE name = 'Office Supplies' LIMIT 1"
   );
+  const rawMaterialsCategory = await runQuery(
+    "SELECT id FROM categories WHERE name = 'Raw Materials' LIMIT 1"
+  );
 
-  if (!electronicsCategory.length || !officeSuppliesCategory.length) {
+  if (!electronicsCategory.length || !officeSuppliesCategory.length || !rawMaterialsCategory.length) {
     throw new Error('Required categories not found after insertion');
   }
 
   const electronicsId = electronicsCategory[0].id;
   const officeSuppliesId = officeSuppliesCategory[0].id;
+  const rawMaterialsId = rawMaterialsCategory[0].id;
 
   // Insert subcategories with explicit category IDs
   const subcategoriesData = [
@@ -40,7 +45,13 @@ export const createSubcategoriesData = async () => {
     ['Filing & Storage', officeSuppliesId, 'Folders, binders, and storage solutions'],
     ['Printing Supplies', officeSuppliesId, 'Ink cartridges, toner, and paper'],
     ['Desk Accessories', officeSuppliesId, 'Organizers, staplers, and desk items'],
-    ['Presentation Materials', officeSuppliesId, 'Whiteboards, markers, and presentation tools']
+    ['Presentation Materials', officeSuppliesId, 'Whiteboards, markers, and presentation tools'],
+    
+    // Raw Materials subcategories
+    ['Wood', rawMaterialsId, 'Lumber, plywood, and wood products'],
+    ['Hardware', rawMaterialsId, 'Hinges, pulls, knobs, and other cabinet hardware'],
+    ['Fasteners', rawMaterialsId, 'Screws, nails, and other fastening hardware'],
+    ['Finishing', rawMaterialsId, 'Stains, paints, varnishes, and edge banding']
   ];
 
   const insertSubcategorySQL = `

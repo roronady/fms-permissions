@@ -25,7 +25,8 @@ export const addSampleInventoryData = async () => {
         { name: 'Office Supplies Plus', contact_person: 'Sarah Johnson', email: 'sarah@officesupplies.com', phone: '+1-555-0102', address: '456 Business Ave, New York, NY 10001' },
         { name: 'Industrial Equipment Co', contact_person: 'Mike Wilson', email: 'mike@industrial.com', phone: '+1-555-0103', address: '789 Factory Road, Detroit, MI 48201' },
         { name: 'Global Materials Ltd', contact_person: 'Lisa Chen', email: 'lisa@globalmaterials.com', phone: '+1-555-0104', address: '321 Import Blvd, Los Angeles, CA 90210' },
-        { name: 'Safety First Inc', contact_person: 'David Brown', email: 'david@safetyfirst.com', phone: '+1-555-0105', address: '654 Protection Way, Chicago, IL 60601' }
+        { name: 'Safety First Inc', contact_person: 'David Brown', email: 'david@safetyfirst.com', phone: '+1-555-0105', address: '654 Protection Way, Chicago, IL 60601' },
+        { name: 'Cabinet Makers Supply', contact_person: 'Robert Johnson', email: 'robert@cabinetmakers.com', phone: '+1-555-0106', address: '789 Woodworking Lane, Portland, OR 97201' }
       ];
 
       for (const supplier of sampleSuppliers) {
@@ -295,6 +296,104 @@ export const addSampleInventoryData = async () => {
         min_quantity: 10,
         max_quantity: 75,
         unit_price: 22.99
+      },
+      
+      // Cabinet Making Materials
+      {
+        name: 'Cabinet Grade Plywood 3/4"',
+        sku: 'CAB-PLY-001',
+        description: '4x8 sheet of 3/4" cabinet grade plywood, birch',
+        category: 'Raw Materials',
+        subcategory: 'Wood',
+        unit: 'Sheets',
+        quantity: 50,
+        min_quantity: 10,
+        max_quantity: 100,
+        unit_price: 65.99
+      },
+      {
+        name: 'Cabinet Hinges Soft-Close',
+        sku: 'CAB-HINGE-001',
+        description: 'Soft-close concealed cabinet hinges, 110° opening',
+        category: 'Raw Materials',
+        subcategory: 'Hardware',
+        unit: 'Pairs',
+        quantity: 200,
+        min_quantity: 50,
+        max_quantity: 500,
+        unit_price: 4.99
+      },
+      {
+        name: 'Cabinet Door Pulls',
+        sku: 'CAB-PULL-001',
+        description: 'Brushed nickel cabinet door pulls, 5" center to center',
+        category: 'Raw Materials',
+        subcategory: 'Hardware',
+        unit: 'Pieces',
+        quantity: 150,
+        min_quantity: 30,
+        max_quantity: 300,
+        unit_price: 3.49
+      },
+      {
+        name: 'Drawer Slides Full Extension',
+        sku: 'CAB-SLIDE-001',
+        description: 'Full extension drawer slides, 18", soft-close',
+        category: 'Raw Materials',
+        subcategory: 'Hardware',
+        unit: 'Pairs',
+        quantity: 120,
+        min_quantity: 30,
+        max_quantity: 250,
+        unit_price: 12.99
+      },
+      {
+        name: 'Cabinet Screws',
+        sku: 'CAB-SCREW-001',
+        description: 'Cabinet assembly screws, #8 x 1-1/4", 100 pack',
+        category: 'Raw Materials',
+        subcategory: 'Fasteners',
+        unit: 'Boxes',
+        quantity: 40,
+        min_quantity: 10,
+        max_quantity: 80,
+        unit_price: 8.99
+      },
+      {
+        name: 'Edge Banding',
+        sku: 'CAB-EDGE-001',
+        description: 'Pre-glued wood veneer edge banding, 50ft roll, birch',
+        category: 'Raw Materials',
+        subcategory: 'Finishing',
+        unit: 'Rolls',
+        quantity: 25,
+        min_quantity: 5,
+        max_quantity: 50,
+        unit_price: 19.99
+      },
+      {
+        name: 'Cabinet Back Panel',
+        sku: 'CAB-BACK-001',
+        description: '1/4" plywood for cabinet backs, 4x8 sheet',
+        category: 'Raw Materials',
+        subcategory: 'Wood',
+        unit: 'Sheets',
+        quantity: 30,
+        min_quantity: 8,
+        max_quantity: 60,
+        unit_price: 32.99
+      },
+      {
+        name: 'Cabinet Shelf Pins',
+        sku: 'CAB-PIN-001',
+        description: 'Metal shelf support pins, 100 pack',
+        category: 'Raw Materials',
+        subcategory: 'Hardware',
+        unit: 'Boxes',
+        quantity: 15,
+        min_quantity: 3,
+        max_quantity: 30,
+        unit_price: 9.99
       }
     ];
 
@@ -361,6 +460,63 @@ export const addSampleBOMData = async () => {
       ('Cabinet Door 24x30', 'Raised panel cabinet door 24" x 30"', '1.0', 'active', 1),
       ('Face Frame Assembly', 'Standard face frame for base cabinet', '1.0', 'active', 1)
     `);
+
+    // Get BOM IDs
+    const boms = await runQuery('SELECT id, name FROM bill_of_materials');
+    
+    // Get item IDs for cabinet materials
+    const cabinetItems = await runQuery(`
+      SELECT id, name, sku FROM inventory_items 
+      WHERE name LIKE '%Cabinet%' OR name LIKE '%Plywood%' OR name LIKE '%Drawer%' OR name LIKE '%Hinge%' OR name LIKE '%Pull%' OR name LIKE '%Slide%' OR name LIKE '%Screw%' OR name LIKE '%Edge%'
+    `);
+    
+    // If we have cabinet items, add them as components to the BOMs
+    if (cabinetItems.length > 0) {
+      // Base Cabinet components
+      const baseCabinetId = boms.find(b => b.name === 'Base Cabinet 24"')?.id;
+      if (baseCabinetId) {
+        for (const item of cabinetItems) {
+          // Skip items that don't make sense for a base cabinet
+          if (item.name.includes('Wall Cabinet')) continue;
+          
+          // Determine appropriate quantity based on item type
+          let quantity = 1;
+          let wasteFactor = 0;
+          
+          if (item.name.includes('Plywood')) {
+            quantity = 0.5; // Half a sheet
+            wasteFactor = 0.1; // 10% waste
+          } else if (item.name.includes('Hinge')) {
+            quantity = 2; // Two hinges per door
+          } else if (item.name.includes('Pull')) {
+            quantity = 2; // One for door, one for drawer
+          } else if (item.name.includes('Slide')) {
+            quantity = 1; // One pair of slides
+          } else if (item.name.includes('Screw')) {
+            quantity = 0.2; // 20% of a box
+            wasteFactor = 0.05; // 5% waste
+          } else if (item.name.includes('Edge')) {
+            quantity = 0.3; // 30% of a roll
+            wasteFactor = 0.15; // 15% waste
+          } else if (item.name.includes('Back')) {
+            quantity = 0.25; // Quarter sheet
+          }
+          
+          await runStatement(`
+            INSERT INTO bom_components (
+              bom_id, item_id, quantity, waste_factor, notes, sort_order
+            ) VALUES (?, ?, ?, ?, ?, ?)
+          `, [
+            baseCabinetId,
+            item.id,
+            quantity,
+            wasteFactor,
+            `Component for ${item.name}`,
+            cabinetItems.indexOf(item) + 1
+          ]);
+        }
+      }
+    }
 
     // Insert sample operations for cabinet manufacturing
     await runStatement(`
