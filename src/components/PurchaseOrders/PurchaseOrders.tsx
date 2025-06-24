@@ -14,7 +14,8 @@ import {
   DollarSign,
   Send,
   Edit,
-  Trash2
+  Trash2,
+  Columns
 } from 'lucide-react';
 import { purchaseOrderService } from '../../services/purchaseOrderService';
 import { useSocket } from '../../contexts/SocketContext';
@@ -27,6 +28,8 @@ import ReceiveItemsModal from './ReceiveItemsModal';
 import POApprovalModal from './POApprovalModal';
 import { POStatsCards, POFilters, POTable } from './PurchaseOrderComponents';
 import { useLocation } from 'react-router-dom';
+import ColumnCustomizerModal, { Column } from '../Common/ColumnCustomizer';
+import { useColumnPreferences } from '../../hooks/useColumnPreferences';
 
 interface PurchaseOrder {
   id: number;
@@ -49,6 +52,19 @@ interface PurchaseOrder {
   created_at: string;
   updated_at: string;
 }
+
+const DEFAULT_COLUMNS: Column[] = [
+  { id: 'po_number', label: 'PO Number', visible: true, width: 180, order: 1 },
+  { id: 'supplier', label: 'Supplier', visible: true, width: 180, order: 2 },
+  { id: 'priority', label: 'Priority', visible: true, width: 100, order: 3 },
+  { id: 'status', label: 'Status', visible: true, width: 150, order: 4 },
+  { id: 'items', label: 'Items', visible: true, width: 100, order: 5 },
+  { id: 'total_amount', label: 'Total Amount', visible: true, width: 130, order: 6 },
+  { id: 'expected_date', label: 'Expected Date', visible: true, width: 150, order: 7 },
+  { id: 'created_by', label: 'Created By', visible: false, width: 150, order: 8 },
+  { id: 'created_at', label: 'Created', visible: false, width: 150, order: 9 },
+  { id: 'actions', label: 'Actions', visible: true, width: 150, order: 10 }
+];
 
 const PurchaseOrders: React.FC = () => {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -80,6 +96,14 @@ const PurchaseOrders: React.FC = () => {
     total: 0,
     pages: 0
   });
+
+  const { 
+    columns, 
+    visibleColumns, 
+    showColumnCustomizer, 
+    setShowColumnCustomizer, 
+    handleSaveColumnPreferences 
+  } = useColumnPreferences('purchase_order_columns', DEFAULT_COLUMNS);
 
   const { socket } = useSocket();
   const { user } = useAuth();
@@ -268,6 +292,13 @@ const PurchaseOrders: React.FC = () => {
         </div>
         <div className="flex space-x-3">
           <button
+            onClick={() => setShowColumnCustomizer(true)}
+            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Columns className="h-4 w-4 mr-2" />
+            Columns
+          </button>
+          <button
             onClick={loadPurchaseOrders}
             className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
@@ -369,6 +400,14 @@ const PurchaseOrders: React.FC = () => {
         }}
         onSuccess={handleModalSuccess}
         purchaseOrder={selectedPO}
+      />
+
+      <ColumnCustomizerModal
+        isOpen={showColumnCustomizer}
+        onClose={() => setShowColumnCustomizer(false)}
+        onSave={handleSaveColumnPreferences}
+        columns={columns}
+        title="Customize Purchase Order Columns"
       />
     </div>
   );

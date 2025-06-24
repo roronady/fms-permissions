@@ -15,7 +15,8 @@ import {
   DollarSign,
   Play,
   FileText,
-  Layers
+  Layers,
+  Columns
 } from 'lucide-react';
 import { productionOrderService } from '../../services/productionService';
 import { useSocket } from '../../contexts/SocketContext';
@@ -27,6 +28,8 @@ import IssueMaterialsModal from './IssueMaterialsModal';
 import CompleteProductionModal from './CompleteProductionModal';
 import BOMsTab from '../MasterData/BOMsTab';
 import { useLocation } from 'react-router-dom';
+import ColumnCustomizerModal, { Column } from '../Common/ColumnCustomizer';
+import { useColumnPreferences } from '../../hooks/useColumnPreferences';
 
 interface ProductionOrder {
   id: number;
@@ -53,6 +56,20 @@ interface ProductionOrder {
   created_at: string;
   updated_at: string;
 }
+
+const DEFAULT_COLUMNS: Column[] = [
+  { id: 'order_number', label: 'Order Number', visible: true, width: 180, order: 1 },
+  { id: 'product', label: 'Product', visible: true, width: 180, order: 2 },
+  { id: 'bom', label: 'BOM', visible: true, width: 150, order: 3 },
+  { id: 'priority', label: 'Priority', visible: true, width: 100, order: 4 },
+  { id: 'status', label: 'Status', visible: true, width: 120, order: 5 },
+  { id: 'quantity', label: 'Quantity', visible: true, width: 100, order: 6 },
+  { id: 'planned_cost', label: 'Planned Cost', visible: true, width: 120, order: 7 },
+  { id: 'due_date', label: 'Due Date', visible: true, width: 120, order: 8 },
+  { id: 'created_by', label: 'Created By', visible: false, width: 150, order: 9 },
+  { id: 'created_at', label: 'Created', visible: false, width: 150, order: 10 },
+  { id: 'actions', label: 'Actions', visible: true, width: 150, order: 11 }
+];
 
 const Production: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'orders' | 'boms'>('orders');
@@ -83,6 +100,14 @@ const Production: React.FC = () => {
     total: 0,
     pages: 0
   });
+
+  const { 
+    columns, 
+    visibleColumns, 
+    showColumnCustomizer, 
+    setShowColumnCustomizer, 
+    handleSaveColumnPreferences 
+  } = useColumnPreferences('production_order_columns', DEFAULT_COLUMNS);
 
   const { socket } = useSocket();
   const { user } = useAuth();
@@ -287,6 +312,15 @@ const Production: React.FC = () => {
           <p className="text-gray-600">Manage manufacturing production orders and bills of materials</p>
         </div>
         <div className="flex space-x-3">
+          {activeTab === 'orders' && (
+            <button
+              onClick={() => setShowColumnCustomizer(true)}
+              className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Columns className="h-4 w-4 mr-2" />
+              Columns
+            </button>
+          )}
           <button
             onClick={() => activeTab === 'orders' ? loadProductionOrders() : null}
             className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -425,156 +459,183 @@ const Production: React.FC = () => {
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Order Number
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Product
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              BOM
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Priority
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Quantity
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Planned Cost
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Due Date
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Actions
-                            </th>
+                            {visibleColumns.map(column => (
+                              <th 
+                                key={column.id} 
+                                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                style={{ width: `${column.width}px`, minWidth: `${column.width}px` }}
+                              >
+                                {column.label}
+                              </th>
+                            ))}
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {productionOrders.map((order) => (
                             <tr key={order.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900">{order.order_number}</div>
-                                  <div className="text-sm text-gray-500">{order.title}</div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900">{order.finished_product_name || 'N/A'}</div>
-                                  <div className="text-sm text-gray-500">{order.finished_product_sku || ''}</div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {order.bom_name || 'N/A'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(order.priority)}`}>
-                                  {order.priority}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  {getStatusIcon(order.status)}
-                                  <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                                    {getStatusText(order.status)}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {order.quantity}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                ${order.planned_cost ? order.planned_cost.toFixed(2) : '0.00'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center text-sm text-gray-900">
-                                  <Calendar className="h-4 w-4 text-gray-400 mr-2" />
-                                  {order.due_date ? new Date(order.due_date).toLocaleDateString() : 'Not set'}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div className="flex space-x-1">
-                                  {/* View Button - Always available */}
-                                  <button
-                                    onClick={() => handleView(order)}
-                                    className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
-                                    title="View Details"
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </button>
+                              {visibleColumns.map(column => {
+                                switch (column.id) {
+                                  case 'order_number':
+                                    return (
+                                      <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                                        <div>
+                                          <div className="text-sm font-medium text-gray-900">{order.order_number}</div>
+                                          <div className="text-sm text-gray-500">{order.title}</div>
+                                        </div>
+                                      </td>
+                                    );
+                                  case 'product':
+                                    return (
+                                      <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                                        <div>
+                                          <div className="text-sm font-medium text-gray-900">{order.finished_product_name || 'N/A'}</div>
+                                          <div className="text-sm text-gray-500">{order.finished_product_sku || ''}</div>
+                                        </div>
+                                      </td>
+                                    );
+                                  case 'bom':
+                                    return (
+                                      <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {order.bom_name || 'N/A'}
+                                      </td>
+                                    );
+                                  case 'priority':
+                                    return (
+                                      <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(order.priority)}`}>
+                                          {order.priority}
+                                        </span>
+                                      </td>
+                                    );
+                                  case 'status':
+                                    return (
+                                      <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex items-center">
+                                          {getStatusIcon(order.status)}
+                                          <span className={`ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                                            {getStatusText(order.status)}
+                                          </span>
+                                        </div>
+                                      </td>
+                                    );
+                                  case 'quantity':
+                                    return (
+                                      <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {order.quantity}
+                                      </td>
+                                    );
+                                  case 'planned_cost':
+                                    return (
+                                      <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        ${order.planned_cost ? order.planned_cost.toFixed(2) : '0.00'}
+                                      </td>
+                                    );
+                                  case 'due_date':
+                                    return (
+                                      <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex items-center text-sm text-gray-900">
+                                          <Calendar className="h-4 w-4 text-gray-400 mr-2" />
+                                          {order.due_date ? new Date(order.due_date).toLocaleDateString() : 'Not set'}
+                                        </div>
+                                      </td>
+                                    );
+                                  case 'created_by':
+                                    return (
+                                      <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {order.created_by_name || 'Unknown'}
+                                      </td>
+                                    );
+                                  case 'created_at':
+                                    return (
+                                      <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {new Date(order.created_at).toLocaleDateString()}
+                                      </td>
+                                    );
+                                  case 'actions':
+                                    return (
+                                      <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <div className="flex space-x-1">
+                                          {/* View Button - Always available */}
+                                          <button
+                                            onClick={() => handleView(order)}
+                                            className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
+                                            title="View Details"
+                                          >
+                                            <Eye className="h-4 w-4" />
+                                          </button>
 
-                                  {/* Edit Button */}
-                                  {canEdit(order) && (
-                                    <button
-                                      onClick={() => handleEdit(order)}
-                                      className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
-                                      title="Edit Order"
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </button>
-                                  )}
+                                          {/* Edit Button */}
+                                          {canEdit(order) && (
+                                            <button
+                                              onClick={() => handleEdit(order)}
+                                              className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
+                                              title="Edit Order"
+                                            >
+                                              <Edit className="h-4 w-4" />
+                                            </button>
+                                          )}
 
-                                  {/* Status Transition Buttons */}
-                                  {order.status === 'draft' && (
-                                    <button
-                                      onClick={() => handleStatusUpdate(order, 'planned')}
-                                      className="text-purple-600 hover:text-purple-900 p-1 rounded hover:bg-purple-50 transition-colors"
-                                      title="Move to Planned"
-                                    >
-                                      <Calendar className="h-4 w-4" />
-                                    </button>
-                                  )}
+                                          {/* Status Transition Buttons */}
+                                          {order.status === 'draft' && (
+                                            <button
+                                              onClick={() => handleStatusUpdate(order, 'planned')}
+                                              className="text-purple-600 hover:text-purple-900 p-1 rounded hover:bg-purple-50 transition-colors"
+                                              title="Move to Planned"
+                                            >
+                                              <Calendar className="h-4 w-4" />
+                                            </button>
+                                          )}
 
-                                  {/* Issue Materials Button */}
-                                  {canIssueMaterials(order) && (
-                                    <button
-                                      onClick={() => handleIssueMaterials(order)}
-                                      className="text-orange-600 hover:text-orange-900 p-1 rounded hover:bg-orange-50 transition-colors"
-                                      title="Issue Materials"
-                                    >
-                                      <Package className="h-4 w-4" />
-                                    </button>
-                                  )}
+                                          {/* Issue Materials Button */}
+                                          {canIssueMaterials(order) && (
+                                            <button
+                                              onClick={() => handleIssueMaterials(order)}
+                                              className="text-orange-600 hover:text-orange-900 p-1 rounded hover:bg-orange-50 transition-colors"
+                                              title="Issue Materials"
+                                            >
+                                              <Package className="h-4 w-4" />
+                                            </button>
+                                          )}
 
-                                  {/* Complete Production Button */}
-                                  {canCompleteProduction(order) && (
-                                    <button
-                                      onClick={() => handleCompleteProduction(order)}
-                                      className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
-                                      title="Complete Production"
-                                    >
-                                      <CheckCircle className="h-4 w-4" />
-                                    </button>
-                                  )}
+                                          {/* Complete Production Button */}
+                                          {canCompleteProduction(order) && (
+                                            <button
+                                              onClick={() => handleCompleteProduction(order)}
+                                              className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
+                                              title="Complete Production"
+                                            >
+                                              <CheckCircle className="h-4 w-4" />
+                                            </button>
+                                          )}
 
-                                  {/* Delete Button */}
-                                  {canDelete(order) && (
-                                    <button
-                                      onClick={() => handleDelete(order)}
-                                      className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                                      title="Delete Order"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
-                                  )}
+                                          {/* Delete Button */}
+                                          {canDelete(order) && (
+                                            <button
+                                              onClick={() => handleDelete(order)}
+                                              className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
+                                              title="Delete Order"
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </button>
+                                          )}
 
-                                  {/* Cancel Button */}
-                                  {['draft', 'planned', 'in_progress'].includes(order.status) && (
-                                    <button
-                                      onClick={() => handleStatusUpdate(order, 'cancelled')}
-                                      className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                                      title="Cancel Order"
-                                    >
-                                      <XCircle className="h-4 w-4" />
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
+                                          {/* Cancel Button */}
+                                          {['draft', 'planned', 'in_progress'].includes(order.status) && (
+                                            <button
+                                              onClick={() => handleStatusUpdate(order, 'cancelled')}
+                                              className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
+                                              title="Cancel Order"
+                                            >
+                                              <XCircle className="h-4 w-4" />
+                                            </button>
+                                          )}
+                                        </div>
+                                      </td>
+                                    );
+                                  default:
+                                    return <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>;
+                                }
+                              })}
                             </tr>
                           ))}
                         </tbody>
@@ -705,6 +766,14 @@ const Production: React.FC = () => {
         }}
         onSuccess={handleModalSuccess}
         productionOrder={selectedOrder}
+      />
+
+      <ColumnCustomizerModal
+        isOpen={showColumnCustomizer}
+        onClose={() => setShowColumnCustomizer(false)}
+        onSave={handleSaveColumnPreferences}
+        columns={columns}
+        title="Customize Production Order Columns"
       />
     </div>
   );

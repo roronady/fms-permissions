@@ -25,8 +25,9 @@ import AddItemModal from './AddItemModal';
 import EditItemModal from './EditItemModal';
 import StockMovementModal from './StockMovementModal';
 import StockAdjustmentModal from './StockAdjustmentModal';
-import ColumnCustomizerModal from './ColumnCustomizerModal';
+import ColumnCustomizerModal from '../Common/ColumnCustomizer';
 import { useLocation } from 'react-router-dom';
+import { useColumnPreferences } from '../../hooks/useColumnPreferences';
 
 interface InventoryItem {
   id: number;
@@ -50,15 +51,7 @@ interface InventoryItem {
   updated_at: string;
 }
 
-interface Column {
-  id: string;
-  label: string;
-  visible: boolean;
-  width: number;
-  order: number;
-}
-
-const DEFAULT_COLUMNS: Column[] = [
+const DEFAULT_COLUMNS = [
   { id: 'name', label: 'Item Name', visible: true, width: 200, order: 1 },
   { id: 'sku', label: 'SKU', visible: true, width: 120, order: 2 },
   { id: 'category_name', label: 'Category', visible: true, width: 120, order: 3 },
@@ -87,26 +80,32 @@ const Inventory: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showStockMovementModal, setShowStockMovementModal] = useState(false);
   const [showStockAdjustmentModal, setShowStockAdjustmentModal] = useState(false);
-  const [showColumnCustomizerModal, setShowColumnCustomizerModal] = useState(false);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([]);
-  const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 50,
     total: 0,
     pages: 0
   });
+  
+  const { 
+    columns, 
+    visibleColumns, 
+    showColumnCustomizer, 
+    setShowColumnCustomizer, 
+    handleSaveColumnPreferences 
+  } = useColumnPreferences('inventory_columns', DEFAULT_COLUMNS);
+  
   const { socket } = useSocket();
   const location = useLocation();
 
   useEffect(() => {
     loadItems();
     loadCategories();
-    loadColumnPreferences();
     
     // Check if we should open the add modal from navigation state
     if (location.state?.openAddModal) {
@@ -161,26 +160,6 @@ const Inventory: React.FC = () => {
     }
   };
 
-  const loadColumnPreferences = async () => {
-    try {
-      const savedColumns = await inventoryService.getColumnPreferences();
-      if (savedColumns) {
-        setColumns(savedColumns);
-      }
-    } catch (error) {
-      console.error('Error loading column preferences:', error);
-    }
-  };
-
-  const handleSaveColumnPreferences = async (updatedColumns: Column[]) => {
-    try {
-      await inventoryService.saveColumnPreferences(updatedColumns);
-      setColumns(updatedColumns);
-    } catch (error) {
-      console.error('Error saving column preferences:', error);
-    }
-  };
-
   const handleDeleteItem = async (id: number, name: string) => {
     if (confirm(`Are you sure you want to delete "${name}"?`)) {
       try {
@@ -215,16 +194,15 @@ const Inventory: React.FC = () => {
   const handleExportCSV = async () => {
     try {
       // Get visible columns for export
-      const visibleColumns = columns
-        .filter(col => col.visible && col.id !== 'actions')
-        .sort((a, b) => a.order - b.order)
+      const visibleColumnIds = visibleColumns
+        .filter(col => col.id !== 'actions')
         .map(col => col.id);
       
-      const columnWidths = columns
-        .filter(col => col.visible && col.id !== 'actions')
+      const columnWidths = visibleColumns
+        .filter(col => col.id !== 'actions')
         .map(col => ({ id: col.id, width: col.width }));
       
-      const blob = await inventoryService.exportCSV(visibleColumns, columnWidths);
+      const blob = await inventoryService.exportCSV(visibleColumnIds, columnWidths);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
@@ -243,16 +221,15 @@ const Inventory: React.FC = () => {
   const handleExportPDF = async () => {
     try {
       // Get visible columns for export
-      const visibleColumns = columns
-        .filter(col => col.visible && col.id !== 'actions')
-        .sort((a, b) => a.order - b.order)
+      const visibleColumnIds = visibleColumns
+        .filter(col => col.id !== 'actions')
         .map(col => col.id);
       
-      const columnWidths = columns
-        .filter(col => col.visible && col.id !== 'actions')
+      const columnWidths = visibleColumns
+        .filter(col => col.id !== 'actions')
         .map(col => ({ id: col.id, width: col.width }));
       
-      const blob = await inventoryService.exportPDF(visibleColumns, 'Inventory Report', columnWidths);
+      const blob = await inventoryService.exportPDF(visibleColumnIds, 'Inventory Report', columnWidths);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
@@ -326,11 +303,6 @@ const Inventory: React.FC = () => {
     }
   };
 
-  // Get visible columns sorted by order
-  const visibleColumns = columns
-    .filter(col => col.visible)
-    .sort((a, b) => a.order - b.order);
-
   const totalItems = items.length;
   const inStockItems = items.filter(item => item.quantity > 0 && !item.is_low_stock).length;
   const lowStockItems = items.filter(item => item.is_low_stock && item.quantity > 0).length;
@@ -346,7 +318,7 @@ const Inventory: React.FC = () => {
         </div>
         <div className="flex space-x-3">
           <button
-            onClick={() => setShowColumnCustomizerModal(true)}
+            onClick={() => setShowColumnCustomizer(true)}
             className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <Columns className="w-4 h-4 mr-2" />
@@ -781,10 +753,11 @@ const Inventory: React.FC = () => {
       />
 
       <ColumnCustomizerModal
-        isOpen={showColumnCustomizerModal}
-        onClose={() => setShowColumnCustomizerModal(false)}
+        isOpen={showColumnCustomizer}
+        onClose={() => setShowColumnCustomizer(false)}
         onSave={handleSaveColumnPreferences}
         columns={columns}
+        title="Customize Inventory Columns"
       />
     </div>
   );

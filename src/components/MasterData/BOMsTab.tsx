@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, FileText, RefreshCw, Package, PenTool as Tool, DollarSign } from 'lucide-react';
+import { Plus, Edit, Trash2, FileText, RefreshCw, Package, PenTool as Tool, DollarSign, Columns } from 'lucide-react';
 import { bomService } from '../../services/bomService';
 import BOMModal from './BOMModal';
 import ViewBOMModal from './ViewBOMModal';
+import ColumnCustomizerModal, { Column } from '../Common/ColumnCustomizer';
+import { useColumnPreferences } from '../../hooks/useColumnPreferences';
 
 interface BOM {
   id: number;
@@ -23,6 +25,17 @@ interface BOM {
   updated_at: string;
 }
 
+const DEFAULT_COLUMNS: Column[] = [
+  { id: 'bom', label: 'BOM', visible: true, width: 200, order: 1 },
+  { id: 'finished_product', label: 'Finished Product', visible: true, width: 200, order: 2 },
+  { id: 'status', label: 'Status', visible: true, width: 100, order: 3 },
+  { id: 'components', label: 'Components', visible: true, width: 120, order: 4 },
+  { id: 'operations', label: 'Operations', visible: true, width: 120, order: 5 },
+  { id: 'total_cost', label: 'Total Cost', visible: true, width: 120, order: 6 },
+  { id: 'created_by', label: 'Created By', visible: true, width: 150, order: 7 },
+  { id: 'actions', label: 'Actions', visible: true, width: 120, order: 8 }
+];
+
 const BOMsTab: React.FC = () => {
   const [boms, setBOMs] = useState<BOM[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +51,14 @@ const BOMsTab: React.FC = () => {
     total: 0,
     pages: 0
   });
+
+  const { 
+    columns, 
+    visibleColumns, 
+    showColumnCustomizer, 
+    setShowColumnCustomizer, 
+    handleSaveColumnPreferences 
+  } = useColumnPreferences('bom_columns', DEFAULT_COLUMNS);
 
   useEffect(() => {
     fetchBOMs();
@@ -140,6 +161,13 @@ const BOMsTab: React.FC = () => {
         </div>
         <div className="flex space-x-3">
           <button
+            onClick={() => setShowColumnCustomizer(true)}
+            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Columns className="h-4 w-4 mr-2" />
+            Columns
+          </button>
+          <button
             onClick={fetchBOMs}
             className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
@@ -192,105 +220,120 @@ const BOMsTab: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  BOM
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Finished Product
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Components
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Operations
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total Cost
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created By
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                {visibleColumns.map(column => (
+                  <th 
+                    key={column.id} 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    style={{ width: `${column.width}px`, minWidth: `${column.width}px` }}
+                  >
+                    {column.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {boms.map((bom) => (
                 <tr key={bom.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <FileText className="h-5 w-5 text-blue-500 mr-3" />
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{bom.name}</div>
-                        <div className="text-xs text-gray-500">v{bom.version}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {bom.finished_product_name ? (
-                      <div className="text-sm text-gray-900">
-                        {bom.finished_product_name}
-                        {bom.finished_product_sku && (
-                          <span className="text-xs text-gray-500 ml-1">({bom.finished_product_sku})</span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-sm text-gray-500">Not specified</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(bom.status)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-gray-900">
-                      <Package className="h-4 w-4 text-gray-400 mr-2" />
-                      {bom.component_count || 0}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-gray-900">
-                      <Tool className="h-4 w-4 text-gray-400 mr-2" />
-                      {bom.operation_count || 0}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-gray-900">
-                      <DollarSign className="h-4 w-4 text-green-500 mr-1" />
-                      {bom.total_cost ? bom.total_cost.toFixed(2) : '0.00'}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {bom.created_by_name || 'Unknown'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end space-x-2">
-                      <button
-                        onClick={() => handleView(bom)}
-                        className="text-indigo-600 hover:text-indigo-900 p-1 rounded hover:bg-indigo-50 transition-colors"
-                        title="View BOM Details"
-                      >
-                        <FileText className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleEdit(bom)}
-                        className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
-                        title="Edit BOM"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(bom.id, bom.name)}
-                        className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                        title="Delete BOM"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
+                  {visibleColumns.map(column => {
+                    switch (column.id) {
+                      case 'bom':
+                        return (
+                          <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <FileText className="h-5 w-5 text-blue-500 mr-3" />
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{bom.name}</div>
+                                <div className="text-xs text-gray-500">v{bom.version}</div>
+                              </div>
+                            </div>
+                          </td>
+                        );
+                      case 'finished_product':
+                        return (
+                          <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                            {bom.finished_product_name ? (
+                              <div className="text-sm text-gray-900">
+                                {bom.finished_product_name}
+                                {bom.finished_product_sku && (
+                                  <span className="text-xs text-gray-500 ml-1">({bom.finished_product_sku})</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-500">Not specified</span>
+                            )}
+                          </td>
+                        );
+                      case 'status':
+                        return (
+                          <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                            {getStatusBadge(bom.status)}
+                          </td>
+                        );
+                      case 'components':
+                        return (
+                          <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center text-sm text-gray-900">
+                              <Package className="h-4 w-4 text-gray-400 mr-2" />
+                              {bom.component_count || 0}
+                            </div>
+                          </td>
+                        );
+                      case 'operations':
+                        return (
+                          <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center text-sm text-gray-900">
+                              <Tool className="h-4 w-4 text-gray-400 mr-2" />
+                              {bom.operation_count || 0}
+                            </div>
+                          </td>
+                        );
+                      case 'total_cost':
+                        return (
+                          <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center text-sm text-gray-900">
+                              <DollarSign className="h-4 w-4 text-green-500 mr-1" />
+                              {bom.total_cost ? bom.total_cost.toFixed(2) : '0.00'}
+                            </div>
+                          </td>
+                        );
+                      case 'created_by':
+                        return (
+                          <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {bom.created_by_name || 'Unknown'}
+                          </td>
+                        );
+                      case 'actions':
+                        return (
+                          <td key={column.id} className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex items-center justify-end space-x-2">
+                              <button
+                                onClick={() => handleView(bom)}
+                                className="text-indigo-600 hover:text-indigo-900 p-1 rounded hover:bg-indigo-50 transition-colors"
+                                title="View BOM Details"
+                              >
+                                <FileText className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleEdit(bom)}
+                                className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
+                                title="Edit BOM"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(bom.id, bom.name)}
+                                className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
+                                title="Delete BOM"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        );
+                      default:
+                        return <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>;
+                    }
+                  })}
                 </tr>
               ))}
             </tbody>
@@ -381,6 +424,14 @@ const BOMsTab: React.FC = () => {
         isOpen={showViewModal}
         onClose={handleViewModalClose}
         bom={viewingBOM}
+      />
+
+      <ColumnCustomizerModal
+        isOpen={showColumnCustomizer}
+        onClose={() => setShowColumnCustomizer(false)}
+        onSave={handleSaveColumnPreferences}
+        columns={columns}
+        title="Customize BOM Columns"
       />
     </div>
   );

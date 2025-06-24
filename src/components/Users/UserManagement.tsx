@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit, Trash2, Shield, User, RefreshCw } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Shield, User, RefreshCw, Columns } from 'lucide-react';
 import { userService } from '../../services/userService';
 import { useAuth } from '../../contexts/AuthContext';
 import AddUserModal from './AddUserModal';
 import EditUserModal from './EditUserModal';
+import ColumnCustomizerModal, { Column } from '../Common/ColumnCustomizer';
+import { useColumnPreferences } from '../../hooks/useColumnPreferences';
 
 interface User {
   id: number;
@@ -14,6 +16,14 @@ interface User {
   updated_at: string;
 }
 
+const DEFAULT_COLUMNS: Column[] = [
+  { id: 'user', label: 'User', visible: true, width: 200, order: 1 },
+  { id: 'role', label: 'Role', visible: true, width: 120, order: 2 },
+  { id: 'created', label: 'Created', visible: true, width: 150, order: 3 },
+  { id: 'updated', label: 'Last Updated', visible: true, width: 150, order: 4 },
+  { id: 'actions', label: 'Actions', visible: true, width: 120, order: 5 }
+];
+
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +31,14 @@ const UserManagement: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const { user: currentUser } = useAuth();
+
+  const { 
+    columns, 
+    visibleColumns, 
+    showColumnCustomizer, 
+    setShowColumnCustomizer, 
+    handleSaveColumnPreferences 
+  } = useColumnPreferences('user_management_columns', DEFAULT_COLUMNS);
 
   useEffect(() => {
     fetchUsers();
@@ -105,6 +123,13 @@ const UserManagement: React.FC = () => {
         </div>
         <div className="flex space-x-3">
           <button
+            onClick={() => setShowColumnCustomizer(true)}
+            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Columns className="h-4 w-4 mr-2" />
+            Columns
+          </button>
+          <button
             onClick={fetchUsers}
             className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
@@ -174,70 +199,85 @@ const UserManagement: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Updated
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                {visibleColumns.map(column => (
+                  <th 
+                    key={column.id} 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    style={{ width: `${column.width}px`, minWidth: `${column.width}px` }}
+                  >
+                    {column.label}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {users.map((user) => (
                 <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {user.username}
-                        {currentUser?.id === user.id && (
-                          <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                            You
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-500">{user.email}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      {getRoleIcon(user.role)}
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleBadgeColor(user.role)}`}>
-                        {user.role}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(user.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(user.updated_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleEditUser(user)}
-                        className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user.id, user.username)}
-                        disabled={currentUser?.id === user.id}
-                        className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
+                  {visibleColumns.map(column => {
+                    switch (column.id) {
+                      case 'user':
+                        return (
+                          <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {user.username}
+                                {currentUser?.id === user.id && (
+                                  <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                    You
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-sm text-gray-500">{user.email}</div>
+                            </div>
+                          </td>
+                        );
+                      case 'role':
+                        return (
+                          <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              {getRoleIcon(user.role)}
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleBadgeColor(user.role)}`}>
+                                {user.role}
+                              </span>
+                            </div>
+                          </td>
+                        );
+                      case 'created':
+                        return (
+                          <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </td>
+                        );
+                      case 'updated':
+                        return (
+                          <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {new Date(user.updated_at).toLocaleDateString()}
+                          </td>
+                        );
+                      case 'actions':
+                        return (
+                          <td key={column.id} className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleEditUser(user)}
+                                className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(user.id, user.username)}
+                                disabled={currentUser?.id === user.id}
+                                className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        );
+                      default:
+                        return <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>;
+                    }
+                  })}
                 </tr>
               ))}
             </tbody>
@@ -277,6 +317,14 @@ const UserManagement: React.FC = () => {
         }}
         onUserUpdated={fetchUsers}
         user={editingUser}
+      />
+
+      <ColumnCustomizerModal
+        isOpen={showColumnCustomizer}
+        onClose={() => setShowColumnCustomizer(false)}
+        onSave={handleSaveColumnPreferences}
+        columns={columns}
+        title="Customize User Management Columns"
       />
     </div>
   );

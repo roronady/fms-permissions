@@ -3,7 +3,8 @@ import {
   ClipboardList, 
   Plus, 
   RefreshCw,
-  ShoppingCart
+  ShoppingCart,
+  Columns
 } from 'lucide-react';
 import { requisitionService } from '../../services/requisitionService';
 import { useSocket } from '../../contexts/SocketContext';
@@ -21,6 +22,8 @@ import {
   RequisitionPermissions
 } from './RequisitionComponents';
 import { useNavigate, useLocation } from 'react-router-dom';
+import ColumnCustomizerModal, { Column } from '../Common/ColumnCustomizer';
+import { useColumnPreferences } from '../../hooks/useColumnPreferences';
 
 interface Requisition {
   id: number;
@@ -41,6 +44,20 @@ interface Requisition {
   created_at: string;
   updated_at: string;
 }
+
+const DEFAULT_COLUMNS: Column[] = [
+  { id: 'title', label: 'Requisition', visible: true, width: 200, order: 1 },
+  { id: 'requester', label: 'Requester', visible: true, width: 150, order: 2 },
+  { id: 'priority', label: 'Priority', visible: true, width: 100, order: 3 },
+  { id: 'status', label: 'Status', visible: true, width: 120, order: 4 },
+  { id: 'items', label: 'Items', visible: true, width: 100, order: 5 },
+  { id: 'cost', label: 'Est. Cost', visible: true, width: 120, order: 6 },
+  { id: 'required_date', label: 'Required Date', visible: true, width: 150, order: 7 },
+  { id: 'department', label: 'Department', visible: false, width: 150, order: 8 },
+  { id: 'created_at', label: 'Created', visible: false, width: 150, order: 9 },
+  { id: 'approver', label: 'Approver', visible: false, width: 150, order: 10 },
+  { id: 'actions', label: 'Actions', visible: true, width: 150, order: 11 }
+];
 
 const Requisitions: React.FC = () => {
   const [requisitions, setRequisitions] = useState<Requisition[]>([]);
@@ -69,6 +86,14 @@ const Requisitions: React.FC = () => {
     total: 0,
     pages: 0
   });
+
+  const { 
+    columns, 
+    visibleColumns, 
+    showColumnCustomizer, 
+    setShowColumnCustomizer, 
+    handleSaveColumnPreferences 
+  } = useColumnPreferences('requisition_columns', DEFAULT_COLUMNS);
 
   const { socket } = useSocket();
   const { user } = useAuth();
@@ -287,6 +312,13 @@ const Requisitions: React.FC = () => {
         </div>
         <div className="flex space-x-3">
           <button
+            onClick={() => setShowColumnCustomizer(true)}
+            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Columns className="h-4 w-4 mr-2" />
+            Columns
+          </button>
+          <button
             onClick={loadRequisitions}
             className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
@@ -374,6 +406,14 @@ const Requisitions: React.FC = () => {
         }}
         onSuccess={handleModalSuccess}
         requisition={selectedRequisition}
+      />
+
+      <ColumnCustomizerModal
+        isOpen={showColumnCustomizer}
+        onClose={() => setShowColumnCustomizer(false)}
+        onSave={handleSaveColumnPreferences}
+        columns={columns}
+        title="Customize Requisition Columns"
       />
     </div>
   );

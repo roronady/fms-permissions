@@ -721,16 +721,16 @@ router.get('/stock-movements/export/csv', async (req, res) => {
 // Save column preferences
 router.post('/column-preferences', async (req, res) => {
   try {
-    const { columns } = req.body;
+    const { columns, preference_type } = req.body;
     
     if (!columns || !Array.isArray(columns)) {
       return res.status(400).json({ error: 'Invalid columns data' });
     }
     
-    // Check if user already has preferences
+    // Check if user already has preferences for this type
     const existingPrefs = await runQuery(
       'SELECT * FROM user_preferences WHERE user_id = ? AND preference_type = ?',
-      [req.user.id, 'inventory_columns']
+      [req.user.id, preference_type || 'inventory_columns']
     );
     
     if (existingPrefs.length > 0) {
@@ -743,7 +743,7 @@ router.post('/column-preferences', async (req, res) => {
       // Create new preferences
       await runStatement(
         'INSERT INTO user_preferences (user_id, preference_type, preference_data) VALUES (?, ?, ?)',
-        [req.user.id, 'inventory_columns', JSON.stringify(columns)]
+        [req.user.id, preference_type || 'inventory_columns', JSON.stringify(columns)]
       );
     }
     
@@ -757,9 +757,11 @@ router.post('/column-preferences', async (req, res) => {
 // Get column preferences
 router.get('/column-preferences', async (req, res) => {
   try {
+    const { preference_type } = req.query;
+    
     const preferences = await runQuery(
       'SELECT preference_data FROM user_preferences WHERE user_id = ? AND preference_type = ?',
-      [req.user.id, 'inventory_columns']
+      [req.user.id, preference_type || 'inventory_columns']
     );
     
     if (preferences.length > 0) {
