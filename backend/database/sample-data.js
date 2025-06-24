@@ -422,6 +422,9 @@ export const addSampleBOMData = async () => {
     
     const adminId = adminUser[0].id;
 
+    // Get suppliers data
+    const suppliers = await runQuery('SELECT id, name FROM suppliers');
+
     // Get inventory items for components
     const plywood = await runQuery('SELECT id FROM inventory_items WHERE sku = ?', ['PLY-BIRCH-34']);
     const mdf = await runQuery('SELECT id FROM inventory_items WHERE sku = ?', ['MDF-34-48']);
