@@ -1,6 +1,6 @@
 import { runStatement, runQuery } from './connection.js';
 import bcrypt from 'bcryptjs';
-import { addSampleInventoryData, addSampleBOMData } from './sample-data.js';
+import { addSampleInventoryData, addSampleBOMData, addSampleRequisitionsData, addSamplePurchaseOrdersData, addSampleProductionOrdersData, addAllSampleData } from './sample-data.js';
 import { createInitialSchema } from './migrations/initial-schema.js';
 import { createInventoryTables } from './migrations/inventory-tables.js';
 import { createAuditTables } from './migrations/audit-tables.js';
@@ -13,6 +13,7 @@ import { createPurchaseOrderTables } from './migrations/purchase-order-tables.js
 import { createBOMTables } from './migrations/create-bom-tables.js';
 import { createStockMovementsTable } from './migrations/stock-movements-table.js';
 import { createProductionOrdersTables } from './migrations/production-orders-tables.js';
+import { addItemTypeToInventory } from './migrations/add-item-type-to-inventory.js';
 
 const migrations = [
   {
@@ -74,6 +75,11 @@ const migrations = [
     version: 15,
     name: 'production_orders_tables',
     execute: createProductionOrdersTables
+  },
+  {
+    version: 16,
+    name: 'add_item_type_to_inventory',
+    execute: addItemTypeToInventory
   }
 ];
 
@@ -124,13 +130,26 @@ export const runMigrations = async () => {
         ['admin', 'admin@wms.local', hashedPassword, 'admin']
       );
       console.log('Default admin user created');
+      
+      // Create a regular user for testing
+      const hashedUserPassword = await bcrypt.hash('user123', 10);
+      await runStatement(
+        'INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)',
+        ['user', 'user@wms.local', hashedUserPassword, 'user']
+      );
+      console.log('Default regular user created');
+      
+      // Create a manager user for testing
+      const hashedManagerPassword = await bcrypt.hash('manager123', 10);
+      await runStatement(
+        'INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)',
+        ['manager', 'manager@wms.local', hashedManagerPassword, 'manager']
+      );
+      console.log('Default manager user created');
     }
 
-    // Add sample inventory data - this will check if data exists first
-    await addSampleInventoryData();
-
-    // Add sample BOM data AFTER admin user is created
-    await addSampleBOMData();
+    // Add comprehensive sample data
+    await addAllSampleData();
 
     console.log('All migrations completed successfully');
   } catch (error) {

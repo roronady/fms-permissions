@@ -83,7 +83,7 @@ router.get('/', async (req, res) => {
         pages: Math.ceil((total || 0) / parseInt(limit))
       }
     });
-  } catch (error) {
+  } catch (error)  {
     console.error('Error fetching production orders:', error);
     res.status(500).json({ error: 'Failed to fetch production orders' });
   }
