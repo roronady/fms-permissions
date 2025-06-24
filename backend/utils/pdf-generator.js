@@ -12,7 +12,7 @@ export const generatePDF = async (items, options = {}) => {
       // Get options
       const title = options.title || 'Inventory Report';
       const columns = options.columns || [
-        'name', 'sku', 'category', 'quantity', 'unit_price', 'total_value', 'location'
+        'name', 'sku', 'category_name', 'quantity', 'unit_price', 'total_value', 'location_name'
       ];
 
       // Map column IDs to display names
@@ -20,11 +20,11 @@ export const generatePDF = async (items, options = {}) => {
         name: 'Name',
         sku: 'SKU',
         description: 'Description',
-        category: 'Category',
-        subcategory: 'Subcategory',
-        unit: 'Unit',
-        location: 'Location',
-        supplier: 'Supplier',
+        category_name: 'Category',
+        subcategory_name: 'Subcategory',
+        unit_name: 'Unit',
+        location_name: 'Location',
+        supplier_name: 'Supplier',
         quantity: 'Qty',
         min_quantity: 'Min Qty',
         max_quantity: 'Max Qty',
@@ -110,19 +110,19 @@ export const generatePDF = async (items, options = {}) => {
             case 'description':
               value = item.description?.substring(0, 20) || '';
               break;
-            case 'category':
+            case 'category_name':
               value = item.category_name?.substring(0, 10) || '';
               break;
-            case 'subcategory':
+            case 'subcategory_name':
               value = item.subcategory_name?.substring(0, 10) || '';
               break;
-            case 'unit':
+            case 'unit_name':
               value = item.unit_name || '';
               break;
-            case 'location':
+            case 'location_name':
               value = item.location_name?.substring(0, 12) || '';
               break;
-            case 'supplier':
+            case 'supplier_name':
               value = item.supplier_name?.substring(0, 12) || '';
               break;
             case 'quantity':

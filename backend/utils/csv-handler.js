@@ -4,27 +4,52 @@ import createCsvWriter from 'csv-writer';
 import { runStatement, runQuery } from '../database/connection.js';
 import { logAuditTrail } from './audit.js';
 
-export const exportToCSV = async (data) => {
+export const exportToCSV = async (data, columns) => {
+  // Define headers based on selected columns or use defaults
+  const headers = columns ? columns.map(col => {
+    return { id: col, title: getColumnTitle(col) };
+  }) : [
+    { id: 'name', title: 'Name' },
+    { id: 'sku', title: 'SKU' },
+    { id: 'description', title: 'Description' },
+    { id: 'category_name', title: 'Category' },
+    { id: 'subcategory_name', title: 'Subcategory' },
+    { id: 'unit_name', title: 'Unit' },
+    { id: 'location_name', title: 'Location' },
+    { id: 'supplier_name', title: 'Supplier' },
+    { id: 'quantity', title: 'Quantity' },
+    { id: 'min_quantity', title: 'Min Quantity' },
+    { id: 'max_quantity', title: 'Max Quantity' },
+    { id: 'unit_price', title: 'Unit Price' },
+    { id: 'total_value', title: 'Total Value' }
+  ];
+
   const csvWriter = createCsvWriter.createObjectCsvStringifier({
-    header: [
-      { id: 'name', title: 'Name' },
-      { id: 'sku', title: 'SKU' },
-      { id: 'description', title: 'Description' },
-      { id: 'category', title: 'Category' },
-      { id: 'subcategory', title: 'Subcategory' },
-      { id: 'unit', title: 'Unit' },
-      { id: 'location', title: 'Location' },
-      { id: 'supplier', title: 'Supplier' },
-      { id: 'quantity', title: 'Quantity' },
-      { id: 'min_quantity', title: 'Min Quantity' },
-      { id: 'max_quantity', title: 'Max Quantity' },
-      { id: 'unit_price', title: 'Unit Price' },
-      { id: 'total_value', title: 'Total Value' }
-    ]
+    header: headers
   });
 
   return csvWriter.getHeaderString() + csvWriter.stringifyRecords(data);
 };
+
+// Helper function to get column title
+function getColumnTitle(columnId) {
+  const titles = {
+    name: 'Name',
+    sku: 'SKU',
+    description: 'Description',
+    category_name: 'Category',
+    subcategory_name: 'Subcategory',
+    unit_name: 'Unit',
+    location_name: 'Location',
+    supplier_name: 'Supplier',
+    quantity: 'Quantity',
+    min_quantity: 'Min Quantity',
+    max_quantity: 'Max Quantity',
+    unit_price: 'Unit Price',
+    total_value: 'Total Value'
+  };
+  return titles[columnId] || columnId;
+}
 
 export const importFromCSV = async (filePath, userId) => {
   return new Promise((resolve, reject) => {

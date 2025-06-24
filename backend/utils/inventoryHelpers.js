@@ -15,29 +15,26 @@ export const calculateTotalValue = (quantity, unitPrice, lastPrice, averagePrice
 export const handleInventoryExport = async (req, res, format, options = {}) => {
   // Get columns to include
   const columns = options.columns || [
-    'name', 'sku', 'description', 'category', 'subcategory', 
-    'unit', 'location', 'supplier', 'quantity', 'min_quantity', 
+    'name', 'sku', 'description', 'category_name', 'subcategory_name', 
+    'unit_name', 'location_name', 'supplier_name', 'quantity', 'min_quantity', 
     'max_quantity', 'unit_price', 'total_value'
   ];
   
   // Build SQL query with selected columns
   let selectColumns = `
-    i.name, i.sku, i.quantity, i.min_quantity, 
+    i.name, i.sku, i.description, i.quantity, i.min_quantity, 
     i.max_quantity, i.unit_price,
+    c.name as category_name,
+    sc.name as subcategory_name,
+    u.name as unit_name,
+    l.name as location_name,
+    s.name as supplier_name,
     COALESCE(
       (SELECT ROUND(AVG(price), 2) FROM price_history WHERE item_id = i.id),
       (SELECT price FROM price_history WHERE item_id = i.id ORDER BY created_at DESC LIMIT 1),
       i.unit_price
     ) * i.quantity as total_value
   `;
-  
-  // Add optional columns based on selection
-  if (columns.includes('description')) selectColumns += ', i.description';
-  if (columns.includes('category')) selectColumns += ', c.name as category';
-  if (columns.includes('subcategory')) selectColumns += ', sc.name as subcategory';
-  if (columns.includes('unit')) selectColumns += ', u.name as unit';
-  if (columns.includes('location')) selectColumns += ', l.name as location';
-  if (columns.includes('supplier')) selectColumns += ', s.name as supplier';
   
   const items = await runQuery(`
     SELECT ${selectColumns}
