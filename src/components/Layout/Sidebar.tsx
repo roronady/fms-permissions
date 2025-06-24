@@ -9,7 +9,8 @@ import {
   Package2,
   Settings,
   ClipboardList,
-  ShoppingCart
+  ShoppingCart,
+  Factory
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -26,6 +27,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { name: 'Inventory', href: '/inventory', icon: Package },
     { name: 'Requisitions', href: '/requisitions', icon: ClipboardList },
     { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
+    { name: 'Production', href: '/production', icon: Factory },
     { name: 'Master Data', href: '/master-data', icon: Settings },
     ...(user?.role === 'admin' ? [{ name: 'User Management', href: '/users', icon: Users }] : []),
   ];

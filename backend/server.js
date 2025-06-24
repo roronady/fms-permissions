@@ -18,6 +18,7 @@ import purchaseOrderReceivingRoutes from './routes/purchaseOrdersReceiving.js';
 import purchaseOrderRequisitionRoutes from './routes/purchaseOrdersRequisition.js';
 import purchaseOrderStatsRoutes from './routes/purchaseOrdersStats.js';
 import bomRoutes from './routes/boms.js';
+import productionOrderRoutes from './routes/productionOrders.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,6 +49,7 @@ io.on('connection', (socket) => {
   socket.join('requisition_updates');
   socket.join('po_updates');
   socket.join('bom_updates');
+  socket.join('production_updates');
   
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
@@ -67,6 +69,7 @@ app.use('/api/purchase-orders', purchaseOrderReceivingRoutes);
 app.use('/api/purchase-orders', purchaseOrderRequisitionRoutes);
 app.use('/api/purchase-orders', purchaseOrderStatsRoutes);
 app.use('/api/boms', bomRoutes);
+app.use('/api/production-orders', productionOrderRoutes);
 
 // Serve static files - Always serve in this environment
 app.use(express.static(path.join(__dirname, '../dist')));

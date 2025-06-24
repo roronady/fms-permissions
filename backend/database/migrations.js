@@ -12,6 +12,7 @@ import { createPriceHistoryTables } from './migrations/price-history-tables.js';
 import { createPurchaseOrderTables } from './migrations/purchase-order-tables.js';
 import { createBOMTables } from './migrations/create-bom-tables.js';
 import { createStockMovementsTable } from './migrations/stock-movements-table.js';
+import { createProductionOrdersTables } from './migrations/production-orders-tables.js';
 
 const migrations = [
   {
@@ -68,6 +69,11 @@ const migrations = [
     version: 14,
     name: 'stock_movements_table',
     execute: createStockMovementsTable
+  },
+  {
+    version: 15,
+    name: 'production_orders_tables',
+    execute: createProductionOrdersTables
   }
 ];
 
