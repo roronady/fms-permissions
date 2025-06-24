@@ -73,7 +73,8 @@ export const handleInventoryExport = async (req, res, format, options = {}) => {
     const pdfOptions = {
       columns: columns,
       title: options.title || 'Inventory Report',
-      columnWidths: columnWidths
+      columnWidths: columnWidths,
+      orientation: options.orientation || 'portrait'
     };
     const pdfBuffer = await generatePDF(items || [], pdfOptions);
     res.setHeader('Content-Type', 'application/pdf');

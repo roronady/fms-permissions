@@ -3,7 +3,14 @@ import PDFDocument from 'pdfkit';
 export const generatePDF = async (items, options = {}) => {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ margin: 50 });
+      // Set up PDF options including orientation
+      const pdfOptions = { 
+        margin: 50,
+        size: 'A4',
+        layout: options.orientation || 'portrait'
+      };
+      
+      const doc = new PDFDocument(pdfOptions);
       const chunks = [];
 
       doc.on('data', chunk => chunks.push(chunk));
@@ -109,7 +116,7 @@ export const generatePDF = async (items, options = {}) => {
 
       items.forEach((item, index) => {
         if (currentY > 700) {
-          doc.addPage();
+          doc.addPage({ size: 'A4', layout: options.orientation || 'portrait' });
           currentY = 50;
           
           // Redraw header on new page

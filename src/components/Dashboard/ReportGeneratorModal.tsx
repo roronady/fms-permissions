@@ -33,6 +33,7 @@ const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({ isOpen, onC
 
   const [reportType, setReportType] = useState<'pdf' | 'csv'>('pdf');
   const [reportTitle, setReportTitle] = useState('Inventory Report');
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -83,7 +84,8 @@ const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({ isOpen, onC
         blob = await inventoryService.exportPDF(
           selectedColumns.map(col => col.id), 
           reportTitle,
-          selectedColumns.map(col => ({ id: col.id, width: col.width }))
+          selectedColumns.map(col => ({ id: col.id, width: col.width })),
+          orientation
         );
       } else {
         blob = await inventoryService.exportCSV(
@@ -178,6 +180,35 @@ const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({ isOpen, onC
             </div>
           </div>
 
+          {/* Orientation (only for PDF) */}
+          {reportType === 'pdf' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Page Orientation
+              </label>
+              <div className="flex space-x-4">
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    className="form-radio h-4 w-4 text-blue-600"
+                    checked={orientation === 'portrait'}
+                    onChange={() => setOrientation('portrait')}
+                  />
+                  <span className="ml-2">Portrait</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    className="form-radio h-4 w-4 text-blue-600"
+                    checked={orientation === 'landscape'}
+                    onChange={() => setOrientation('landscape')}
+                  />
+                  <span className="ml-2">Landscape</span>
+                </label>
+              </div>
+            </div>
+          )}
+
           {/* Column Selection */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -247,6 +278,7 @@ const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({ isOpen, onC
             <div className="mt-2 pt-2 border-t border-blue-100">
               <p className="text-xs text-blue-600">
                 Column widths will be applied to the generated report.
+                {reportType === 'pdf' && ` Page orientation: ${orientation}.`}
               </p>
             </div>
           </div>

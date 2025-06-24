@@ -406,11 +406,12 @@ router.post('/import/csv', async (req, res) => {
 // Generate PDF report
 router.get('/export/pdf', async (req, res) => {
   try {
-    const { columns, title, columnWidths } = req.query;
+    const { columns, title, columnWidths, orientation } = req.query;
     const options = {
       columns: columns ? columns.split(',') : undefined,
       title: title || undefined,
-      columnWidths: columnWidths ? JSON.parse(columnWidths) : undefined
+      columnWidths: columnWidths ? JSON.parse(columnWidths) : undefined,
+      orientation: orientation || 'portrait'
     };
     
     await handleInventoryExport(req, res, 'pdf', options);

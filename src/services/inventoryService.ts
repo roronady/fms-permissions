@@ -178,7 +178,7 @@ export const inventoryService = {
     return handleResponse(response);
   },
 
-  async exportPDF(columns?: string[], title?: string, columnWidths?: Array<{id: string, width: number}>) {
+  async exportPDF(columns?: string[], title?: string, columnWidths?: Array<{id: string, width: number}>, orientation?: 'portrait' | 'landscape') {
     const token = localStorage.getItem('token');
     let url = `${API_BASE}/inventory/export/pdf`;
     
@@ -198,6 +198,11 @@ export const inventoryService = {
     // Add column widths if provided
     if (columnWidths && columnWidths.length > 0) {
       params.append('columnWidths', JSON.stringify(columnWidths));
+    }
+    
+    // Add orientation if provided
+    if (orientation) {
+      params.append('orientation', orientation);
     }
     
     if (params.toString()) {
@@ -222,9 +227,10 @@ export const inventoryService = {
     title: string;
     format: 'pdf' | 'csv';
     columnWidths?: Array<{id: string, width: number}>;
+    orientation?: 'portrait' | 'landscape';
   }) {
     if (options.format === 'pdf') {
-      return this.exportPDF(options.columns, options.title, options.columnWidths);
+      return this.exportPDF(options.columns, options.title, options.columnWidths, options.orientation);
     } else {
       return this.exportCSV(options.columns, options.columnWidths);
     }
