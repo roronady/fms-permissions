@@ -19,7 +19,7 @@ import { inventoryService } from '../../services/inventoryService';
 import { requisitionService } from '../../services/requisitionService';
 import { purchaseOrderService } from '../../services/purchaseOrderService';
 import { useSocket } from '../../contexts/SocketContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface DashboardStats {
   totalItems: number;
@@ -45,6 +45,7 @@ const Dashboard: React.FC = () => {
   const [recentPOs, setRecentPOs] = useState<any[]>([]);
   const { socket } = useSocket();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     loadDashboardData();
@@ -147,24 +148,24 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Navigate to inventory page with state to open add item modal
+  const handleAddItem = () => {
+    navigate('/inventory', { state: { openAddModal: true } });
+  };
+
+  // Navigate to requisitions page with state to open create requisition modal
+  const handleNewRequisition = () => {
+    navigate('/requisitions', { state: { openCreateModal: true } });
+  };
+
+  // Navigate to purchase orders page with state to open create PO modal
+  const handleCreatePO = () => {
+    navigate('/purchase-orders', { state: { openCreateModal: true } });
+  };
+
   const navigateToInventory = () => navigate('/inventory');
   const navigateToRequisitions = () => navigate('/requisitions');
   const navigateToPurchaseOrders = () => navigate('/purchase-orders');
-
-  const handleAddItem = () => {
-    navigate('/inventory');
-    // We'll let the Inventory component handle showing the modal
-  };
-
-  const handleNewRequisition = () => {
-    navigate('/requisitions');
-    // We'll let the Requisitions component handle showing the modal
-  };
-
-  const handleCreatePO = () => {
-    navigate('/purchase-orders');
-    // We'll let the PurchaseOrders component handle showing the modal
-  };
 
   const statCards = [
     {
@@ -261,7 +262,7 @@ const Dashboard: React.FC = () => {
                       {req.status}
                     </span>
                     <button 
-                      onClick={() => navigate(`/requisitions`)}
+                      onClick={() => navigate(`/requisitions`, { state: { viewRequisition: req.id } })}
                       className="ml-2 text-blue-600 hover:text-blue-800"
                     >
                       <Eye className="h-4 w-4" />
@@ -313,7 +314,7 @@ const Dashboard: React.FC = () => {
                        po.status.charAt(0).toUpperCase() + po.status.slice(1)}
                     </span>
                     <button 
-                      onClick={() => navigate(`/purchase-orders`)}
+                      onClick={() => navigate(`/purchase-orders`, { state: { viewPurchaseOrder: po.id } })}
                       className="ml-2 text-blue-600 hover:text-blue-800"
                     >
                       <Eye className="h-4 w-4" />

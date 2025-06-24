@@ -78,7 +78,20 @@ const Requisitions: React.FC = () => {
   useEffect(() => {
     loadRequisitions();
     loadStats();
-  }, [searchTerm, statusFilter, pagination.page]);
+    
+    // Check if we should open modals from navigation state
+    if (location.state) {
+      if (location.state.openCreateModal) {
+        setShowCreateModal(true);
+      }
+      if (location.state.viewRequisition) {
+        const reqId = location.state.viewRequisition;
+        handleViewById(reqId);
+      }
+      // Clear the state to prevent reopening on page refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [searchTerm, statusFilter, pagination.page, location.state]);
 
   useEffect(() => {
     if (socket && socket.connected) {
@@ -160,6 +173,18 @@ const Requisitions: React.FC = () => {
         issued_count: 0,
         partially_issued_count: 0
       });
+    }
+  };
+
+  const handleViewById = async (id: number) => {
+    try {
+      const data = await requisitionService.getRequisition(id);
+      if (data) {
+        setSelectedRequisition(data);
+        setShowViewModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching requisition:', error);
     }
   };
 

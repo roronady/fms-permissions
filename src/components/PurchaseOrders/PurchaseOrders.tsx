@@ -26,6 +26,7 @@ import CreateFromRequisitionModal from './CreateFromRequisitionModal';
 import ReceiveItemsModal from './ReceiveItemsModal';
 import POApprovalModal from './POApprovalModal';
 import { POStatsCards, POFilters, POTable } from './PurchaseOrderComponents';
+import { useLocation } from 'react-router-dom';
 
 interface PurchaseOrder {
   id: number;
@@ -82,11 +83,28 @@ const PurchaseOrders: React.FC = () => {
 
   const { socket } = useSocket();
   const { user } = useAuth();
+  const location = useLocation();
 
   useEffect(() => {
     loadPurchaseOrders();
     loadStats();
-  }, [searchTerm, statusFilter, pagination.page]);
+    
+    // Check if we should open modals from navigation state
+    if (location.state) {
+      if (location.state.openCreateModal) {
+        setShowCreateModal(true);
+      }
+      if (location.state.openCreateFromRequisition) {
+        setShowCreateFromReqModal(true);
+      }
+      if (location.state.viewPurchaseOrder) {
+        const poId = location.state.viewPurchaseOrder;
+        handleViewById(poId);
+      }
+      // Clear the state to prevent reopening on page refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [searchTerm, statusFilter, pagination.page, location.state]);
 
   useEffect(() => {
     if (socket && socket.connected) {
@@ -144,6 +162,39 @@ const PurchaseOrders: React.FC = () => {
       setStats(statsData);
     } catch (error) {
       console.error('Error loading stats:', error);
+    }
+  };
+
+  const handleViewById = async (id: number) => {
+    try {
+      const data = await purchaseOrderService.getPurchaseOrder(id);
+      if (data) {
+        const po = {
+          id: data.id,
+          po_number: data.po_number,
+          title: data.title,
+          description: data.description,
+          supplier_id: data.supplier_id,
+          supplier_name: data.supplier_name,
+          supplier_contact: data.supplier_contact,
+          status: data.status,
+          priority: data.priority,
+          order_date: data.order_date,
+          expected_delivery_date: data.expected_delivery_date,
+          actual_delivery_date: data.actual_delivery_date,
+          total_amount: data.total_amount,
+          item_count: data.items?.length || 0,
+          created_by: data.created_by,
+          created_by_name: data.created_by_name,
+          approved_by_name: data.approved_by_name,
+          created_at: data.created_at,
+          updated_at: data.updated_at
+        };
+        setSelectedPO(po);
+        setShowViewModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching purchase order:', error);
     }
   };
 

@@ -17,6 +17,7 @@ import { inventoryService } from '../../services/inventoryService';
 import { useSocket } from '../../contexts/SocketContext';
 import AddItemModal from './AddItemModal';
 import EditItemModal from './EditItemModal';
+import { useLocation } from 'react-router-dom';
 
 interface InventoryItem {
   id: number;
@@ -55,11 +56,19 @@ const Inventory: React.FC = () => {
     pages: 0
   });
   const { socket } = useSocket();
+  const location = useLocation();
 
   useEffect(() => {
     loadItems();
     loadCategories();
-  }, [searchTerm, selectedCategory, pagination.page]);
+    
+    // Check if we should open the add modal from navigation state
+    if (location.state?.openAddModal) {
+      setShowAddModal(true);
+      // Clear the state to prevent reopening on page refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [searchTerm, selectedCategory, pagination.page, location.state]);
 
   useEffect(() => {
     if (socket) {
