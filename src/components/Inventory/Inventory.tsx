@@ -11,12 +11,20 @@ import {
   FileText,
   RefreshCw,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Columns,
+  History,
+  Settings,
+  Plus as PlusIcon,
+  Minus
 } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 import { useSocket } from '../../contexts/SocketContext';
 import AddItemModal from './AddItemModal';
 import EditItemModal from './EditItemModal';
+import StockMovementModal from './StockMovementModal';
+import StockAdjustmentModal from './StockAdjustmentModal';
+import ColumnCustomizerModal from './ColumnCustomizerModal';
 import { useLocation } from 'react-router-dom';
 
 interface InventoryItem {
@@ -40,15 +48,48 @@ interface InventoryItem {
   updated_at: string;
 }
 
+interface Column {
+  id: string;
+  label: string;
+  visible: boolean;
+  width: number;
+  order: number;
+}
+
+const DEFAULT_COLUMNS: Column[] = [
+  { id: 'name', label: 'Item Name', visible: true, width: 200, order: 1 },
+  { id: 'sku', label: 'SKU', visible: true, width: 120, order: 2 },
+  { id: 'category_name', label: 'Category', visible: true, width: 120, order: 3 },
+  { id: 'subcategory_name', label: 'Subcategory', visible: false, width: 120, order: 4 },
+  { id: 'quantity', label: 'Quantity', visible: true, width: 100, order: 5 },
+  { id: 'unit_name', label: 'Unit', visible: true, width: 80, order: 6 },
+  { id: 'location_name', label: 'Location', visible: true, width: 120, order: 7 },
+  { id: 'supplier_name', label: 'Supplier', visible: false, width: 150, order: 8 },
+  { id: 'unit_price', label: 'Unit Price', visible: true, width: 100, order: 9 },
+  { id: 'last_price', label: 'Last Price', visible: false, width: 100, order: 10 },
+  { id: 'average_price', label: 'Avg Price', visible: false, width: 100, order: 11 },
+  { id: 'total_value', label: 'Total Value', visible: true, width: 120, order: 12 },
+  { id: 'min_quantity', label: 'Min Qty', visible: false, width: 100, order: 13 },
+  { id: 'max_quantity', label: 'Max Qty', visible: false, width: 100, order: 14 },
+  { id: 'status', label: 'Status', visible: true, width: 100, order: 15 },
+  { id: 'actions', label: 'Actions', visible: true, width: 120, order: 16 }
+];
+
 const Inventory: React.FC = () => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showStockMovementModal, setShowStockMovementModal] = useState(false);
+  const [showStockAdjustmentModal, setShowStockAdjustmentModal] = useState(false);
+  const [showColumnCustomizerModal, setShowColumnCustomizerModal] = useState(false);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([]);
+  const [columns, setColumns] = useState<Column[]>(DEFAULT_COLUMNS);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 50,
@@ -61,6 +102,7 @@ const Inventory: React.FC = () => {
   useEffect(() => {
     loadItems();
     loadCategories();
+    loadColumnPreferences();
     
     // Check if we should open the add modal from navigation state
     if (location.state?.openAddModal) {
@@ -114,6 +156,26 @@ const Inventory: React.FC = () => {
     }
   };
 
+  const loadColumnPreferences = async () => {
+    try {
+      const savedColumns = await inventoryService.getColumnPreferences();
+      if (savedColumns) {
+        setColumns(savedColumns);
+      }
+    } catch (error) {
+      console.error('Error loading column preferences:', error);
+    }
+  };
+
+  const handleSaveColumnPreferences = async (updatedColumns: Column[]) => {
+    try {
+      await inventoryService.saveColumnPreferences(updatedColumns);
+      setColumns(updatedColumns);
+    } catch (error) {
+      console.error('Error saving column preferences:', error);
+    }
+  };
+
   const handleDeleteItem = async (id: number, name: string) => {
     if (confirm(`Are you sure you want to delete "${name}"?`)) {
       try {
@@ -131,14 +193,33 @@ const Inventory: React.FC = () => {
     setShowEditModal(true);
   };
 
+  const handleViewStockMovement = (id: number) => {
+    setSelectedItemId(id);
+    setShowStockMovementModal(true);
+  };
+
+  const handleStockAdjustment = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setShowStockAdjustmentModal(true);
+  };
+
   const handleAddItemClick = () => {
-    console.log('Add Item button clicked'); // Debug log
     setShowAddModal(true);
   };
 
   const handleExportCSV = async () => {
     try {
-      const blob = await inventoryService.exportCSV();
+      // Get visible columns for export
+      const visibleColumns = columns
+        .filter(col => col.visible && col.id !== 'actions')
+        .sort((a, b) => a.order - b.order)
+        .map(col => col.id);
+      
+      const columnWidths = columns
+        .filter(col => col.visible && col.id !== 'actions')
+        .map(col => ({ id: col.id, width: col.width }));
+      
+      const blob = await inventoryService.exportCSV(visibleColumns, columnWidths);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
@@ -156,7 +237,17 @@ const Inventory: React.FC = () => {
 
   const handleExportPDF = async () => {
     try {
-      const blob = await inventoryService.exportPDF();
+      // Get visible columns for export
+      const visibleColumns = columns
+        .filter(col => col.visible && col.id !== 'actions')
+        .sort((a, b) => a.order - b.order)
+        .map(col => col.id);
+      
+      const columnWidths = columns
+        .filter(col => col.visible && col.id !== 'actions')
+        .map(col => ({ id: col.id, width: col.width }));
+      
+      const blob = await inventoryService.exportPDF(visibleColumns, 'Inventory Report', columnWidths);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
@@ -212,6 +303,11 @@ const Inventory: React.FC = () => {
     return null;
   };
 
+  // Get visible columns sorted by order
+  const visibleColumns = columns
+    .filter(col => col.visible)
+    .sort((a, b) => a.order - b.order);
+
   const totalItems = items.length;
   const inStockItems = items.filter(item => item.quantity > 0 && !item.is_low_stock).length;
   const lowStockItems = items.filter(item => item.is_low_stock && item.quantity > 0).length;
@@ -226,6 +322,13 @@ const Inventory: React.FC = () => {
           <p className="text-gray-600">Track and manage your inventory items</p>
         </div>
         <div className="flex space-x-3">
+          <button
+            onClick={() => setShowColumnCustomizerModal(true)}
+            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Columns className="w-4 h-4 mr-2" />
+            Columns
+          </button>
           <button
             onClick={handleExportCSV}
             className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -357,100 +460,167 @@ const Inventory: React.FC = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Item
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      SKU
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Category
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Quantity
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Current Price
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Last Price
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Avg Price
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Value
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    {visibleColumns.map(column => (
+                      <th 
+                        key={column.id} 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        style={{ width: `${column.width}px`, minWidth: `${column.width}px` }}
+                      >
+                        {column.label}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {items.map((item) => (
                     <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.sku}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.category_name || 'Uncategorized'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="flex items-center">
-                          {item.quantity} {item.unit_name && `${item.unit_name}`}
-                          {item.is_low_stock && item.quantity > 0 && (
-                            <AlertTriangle className="w-4 h-4 text-yellow-500 ml-2" />
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="flex items-center">
-                          ${item.unit_price.toFixed(2)}
-                          {getPriceTrend(item.unit_price, item.last_price) && (
-                            <span className="ml-2">
-                              {getPriceTrend(item.unit_price, item.last_price)}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.last_price ? `$${item.last_price.toFixed(2)}` : '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.average_price ? `$${item.average_price.toFixed(2)}` : '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${item.total_value.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(item)}`}>
-                          {getStatusText(item)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <button 
-                            onClick={() => handleEditItem(item.id)}
-                            className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteItem(item.id, item.name)}
-                            className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
+                      {visibleColumns.map(column => {
+                        switch (column.id) {
+                          case 'name':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                                </div>
+                              </td>
+                            );
+                          case 'sku':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {item.sku}
+                              </td>
+                            );
+                          case 'category_name':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {item.category_name || 'Uncategorized'}
+                              </td>
+                            );
+                          case 'subcategory_name':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {item.subcategory_name || '-'}
+                              </td>
+                            );
+                          case 'quantity':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <div className="flex items-center">
+                                  {item.quantity} {item.unit_name && `${item.unit_name}`}
+                                  {item.is_low_stock && item.quantity > 0 && (
+                                    <AlertTriangle className="w-4 h-4 text-yellow-500 ml-2" />
+                                  )}
+                                </div>
+                              </td>
+                            );
+                          case 'unit_name':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {item.unit_name || '-'}
+                              </td>
+                            );
+                          case 'location_name':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {item.location_name || '-'}
+                              </td>
+                            );
+                          case 'supplier_name':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {item.supplier_name || '-'}
+                              </td>
+                            );
+                          case 'unit_price':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <div className="flex items-center">
+                                  ${item.unit_price.toFixed(2)}
+                                  {getPriceTrend(item.unit_price, item.last_price) && (
+                                    <span className="ml-2">
+                                      {getPriceTrend(item.unit_price, item.last_price)}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            );
+                          case 'last_price':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {item.last_price ? `$${item.last_price.toFixed(2)}` : '-'}
+                              </td>
+                            );
+                          case 'average_price':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {item.average_price ? `$${item.average_price.toFixed(2)}` : '-'}
+                              </td>
+                            );
+                          case 'total_value':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                ${item.total_value.toFixed(2)}
+                              </td>
+                            );
+                          case 'min_quantity':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {item.min_quantity}
+                              </td>
+                            );
+                          case 'max_quantity':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {item.max_quantity}
+                              </td>
+                            );
+                          case 'status':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(item)}`}>
+                                  {getStatusText(item)}
+                                </span>
+                              </td>
+                            );
+                          case 'actions':
+                            return (
+                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div className="flex space-x-2">
+                                  <button 
+                                    onClick={() => handleEditItem(item.id)}
+                                    className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
+                                    title="Edit Item"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleStockAdjustment(item)}
+                                    className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
+                                    title="Adjust Stock"
+                                  >
+                                    <Settings className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleViewStockMovement(item.id)}
+                                    className="text-purple-600 hover:text-purple-900 p-1 rounded hover:bg-purple-50 transition-colors"
+                                    title="View Stock Movement History"
+                                  >
+                                    <History className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteItem(item.id, item.name)}
+                                    className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
+                                    title="Delete Item"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            );
+                          default:
+                            return <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>;
+                        }
+                      })}
                     </tr>
                   ))}
                 </tbody>
@@ -546,6 +716,32 @@ const Inventory: React.FC = () => {
         }}
         onItemUpdated={loadItems}
         itemId={editingItemId}
+      />
+
+      <StockMovementModal
+        isOpen={showStockMovementModal}
+        onClose={() => {
+          setShowStockMovementModal(false);
+          setSelectedItemId(null);
+        }}
+        itemId={selectedItemId}
+      />
+
+      <StockAdjustmentModal
+        isOpen={showStockAdjustmentModal}
+        onClose={() => {
+          setShowStockAdjustmentModal(false);
+          setSelectedItem(null);
+        }}
+        onSuccess={loadItems}
+        item={selectedItem}
+      />
+
+      <ColumnCustomizerModal
+        isOpen={showColumnCustomizerModal}
+        onClose={() => setShowColumnCustomizerModal(false)}
+        onSave={handleSaveColumnPreferences}
+        columns={columns}
       />
     </div>
   );

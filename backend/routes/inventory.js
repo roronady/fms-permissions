@@ -231,6 +231,25 @@ router.post('/items', async (req, res) => {
       `, [result.id, unit_price]);
     }
 
+    // Add stock movement entry for initial stock
+    if (quantity && quantity > 0) {
+      await runStatement(`
+        INSERT INTO stock_movements (
+          item_id, movement_type, quantity, reference_type, 
+          reference_id, reference_number, notes, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        result.id, 
+        'in', 
+        quantity, 
+        'initial', 
+        result.id, 
+        `INIT-${result.id}`,
+        'Initial stock entry',
+        req.user.id
+      ]);
+    }
+
     await logAuditTrail('inventory_items', result.id, 'INSERT', null, req.body, req.user.id);
 
     // Emit real-time update
@@ -303,6 +322,28 @@ router.put('/items/:id', async (req, res) => {
       await runStatement(`
         INSERT INTO price_history (item_id, price) VALUES (?, ?)
       `, [itemId, unit_price]);
+    }
+
+    // Add stock movement entry if quantity changed
+    if (quantity !== currentItem.quantity) {
+      const movementType = quantity > currentItem.quantity ? 'in' : 'out';
+      const movementQuantity = Math.abs(quantity - currentItem.quantity);
+      
+      await runStatement(`
+        INSERT INTO stock_movements (
+          item_id, movement_type, quantity, reference_type, 
+          reference_id, reference_number, notes, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        itemId, 
+        movementType, 
+        movementQuantity, 
+        'adjustment', 
+        itemId, 
+        `ADJ-${Date.now()}`,
+        'Quantity updated via item edit',
+        req.user.id
+      ]);
     }
 
     await logAuditTrail('inventory_items', itemId, 'UPDATE', currentItem, req.body, req.user.id);
@@ -418,6 +459,306 @@ router.get('/export/pdf', async (req, res) => {
   } catch (error) {
     console.error('Error generating PDF:', error);
     res.status(500).json({ error: 'Failed to generate PDF' });
+  }
+});
+
+// Stock adjustment endpoint
+router.post('/adjust-stock', async (req, res) => {
+  try {
+    const { item_id, adjustment_type, quantity, reason } = req.body;
+    
+    if (!item_id || !adjustment_type || !quantity || !reason) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    // Get current item
+    const items = await runQuery('SELECT * FROM inventory_items WHERE id = ?', [item_id]);
+    if (items.length === 0) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+    
+    const item = items[0];
+    const currentQuantity = item.quantity;
+    let newQuantity;
+    
+    if (adjustment_type === 'add') {
+      newQuantity = currentQuantity + quantity;
+    } else if (adjustment_type === 'subtract') {
+      newQuantity = currentQuantity - quantity;
+    } else {
+      return res.status(400).json({ error: 'Invalid adjustment type' });
+    }
+    
+    // Update item quantity
+    await runStatement(`
+      UPDATE inventory_items 
+      SET quantity = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `, [newQuantity, item_id]);
+    
+    // Record stock movement
+    await runStatement(`
+      INSERT INTO stock_movements (
+        item_id, movement_type, quantity, reference_type, 
+        reference_id, reference_number, notes, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      item_id, 
+      adjustment_type === 'add' ? 'in' : 'out', 
+      quantity, 
+      'adjustment', 
+      item_id, 
+      `ADJ-${Date.now()}`,
+      reason,
+      req.user.id
+    ]);
+    
+    // Log audit trail
+    await logAuditTrail('inventory_items', item_id, 'UPDATE', 
+      { quantity: currentQuantity }, 
+      { quantity: newQuantity, adjustment_reason: reason }, 
+      req.user.id
+    );
+    
+    // Emit real-time update
+    if (req.app.get('io')) {
+      req.app.get('io').to('inventory_updates').emit('item_updated', {
+        id: item_id,
+        quantity: newQuantity
+      });
+    }
+    
+    res.json({ 
+      message: 'Stock adjusted successfully',
+      new_quantity: newQuantity
+    });
+  } catch (error) {
+    console.error('Error adjusting stock:', error);
+    res.status(500).json({ error: 'Failed to adjust stock' });
+  }
+});
+
+// Get stock movements
+router.get('/stock-movements', async (req, res) => {
+  try {
+    const { itemId, startDate, endDate, movementType, page = 1, limit = 50 } = req.query;
+    
+    let sql = `
+      SELECT 
+        sm.*,
+        i.name as item_name,
+        u.username as created_by
+      FROM stock_movements sm
+      JOIN inventory_items i ON sm.item_id = i.id
+      LEFT JOIN users u ON sm.created_by = u.id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (itemId) {
+      sql += ` AND sm.item_id = ?`;
+      params.push(itemId);
+    }
+    
+    if (startDate) {
+      sql += ` AND sm.created_at >= ?`;
+      params.push(`${startDate}T00:00:00.000Z`);
+    }
+    
+    if (endDate) {
+      sql += ` AND sm.created_at <= ?`;
+      params.push(`${endDate}T23:59:59.999Z`);
+    }
+    
+    if (movementType && movementType !== 'all') {
+      sql += ` AND sm.movement_type = ?`;
+      params.push(movementType);
+    }
+    
+    sql += ` ORDER BY sm.created_at DESC`;
+    
+    const offset = (page - 1) * limit;
+    sql += ` LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit), parseInt(offset));
+    
+    const movements = await runQuery(sql, params);
+    
+    // Get total count for pagination
+    let countSql = `
+      SELECT COUNT(*) as total
+      FROM stock_movements sm
+      WHERE 1=1
+    `;
+    
+    const countParams = [];
+    
+    if (itemId) {
+      countSql += ` AND sm.item_id = ?`;
+      countParams.push(itemId);
+    }
+    
+    if (startDate) {
+      countSql += ` AND sm.created_at >= ?`;
+      countParams.push(`${startDate}T00:00:00.000Z`);
+    }
+    
+    if (endDate) {
+      countSql += ` AND sm.created_at <= ?`;
+      countParams.push(`${endDate}T23:59:59.999Z`);
+    }
+    
+    if (movementType && movementType !== 'all') {
+      countSql += ` AND sm.movement_type = ?`;
+      countParams.push(movementType);
+    }
+    
+    const countResult = await runQuery(countSql, countParams);
+    const total = countResult[0].total;
+    
+    res.json({
+      movements: movements || [],
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: total || 0,
+        pages: Math.ceil((total || 0) / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching stock movements:', error);
+    res.status(500).json({ error: 'Failed to fetch stock movements' });
+  }
+});
+
+// Export stock movements to CSV
+router.get('/stock-movements/export/csv', async (req, res) => {
+  try {
+    const { itemId, startDate, endDate, movementType } = req.query;
+    
+    let sql = `
+      SELECT 
+        sm.created_at,
+        i.name as item_name,
+        i.sku,
+        sm.movement_type,
+        sm.quantity,
+        sm.reference_type,
+        sm.reference_number,
+        sm.notes,
+        u.username as created_by
+      FROM stock_movements sm
+      JOIN inventory_items i ON sm.item_id = i.id
+      LEFT JOIN users u ON sm.created_by = u.id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (itemId) {
+      sql += ` AND sm.item_id = ?`;
+      params.push(itemId);
+    }
+    
+    if (startDate) {
+      sql += ` AND sm.created_at >= ?`;
+      params.push(`${startDate}T00:00:00.000Z`);
+    }
+    
+    if (endDate) {
+      sql += ` AND sm.created_at <= ?`;
+      params.push(`${endDate}T23:59:59.999Z`);
+    }
+    
+    if (movementType && movementType !== 'all') {
+      sql += ` AND sm.movement_type = ?`;
+      params.push(movementType);
+    }
+    
+    sql += ` ORDER BY sm.created_at DESC`;
+    
+    const movements = await runQuery(sql, params);
+    
+    // Format data for CSV
+    const csvData = movements.map(m => ({
+      Date: new Date(m.created_at).toLocaleString(),
+      Item: m.item_name,
+      SKU: m.sku,
+      Type: m.movement_type === 'in' ? 'Stock In' : m.movement_type === 'out' ? 'Stock Out' : 'Adjustment',
+      Quantity: m.movement_type === 'in' ? m.quantity : -m.quantity,
+      Reference: `${m.reference_type} (${m.reference_number})`,
+      Notes: m.notes,
+      'Created By': m.created_by
+    }));
+    
+    // Generate CSV
+    const { exportToCSV } = await import('../utils/csv-handler.js');
+    const csvContent = await exportToCSV(csvData, [
+      'Date', 'Item', 'SKU', 'Type', 'Quantity', 'Reference', 'Notes', 'Created By'
+    ]);
+    
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=stock_movements.csv');
+    res.send(csvContent);
+  } catch (error) {
+    console.error('Error exporting stock movements:', error);
+    res.status(500).json({ error: 'Failed to export stock movements' });
+  }
+});
+
+// Save column preferences
+router.post('/column-preferences', async (req, res) => {
+  try {
+    const { columns } = req.body;
+    
+    if (!columns || !Array.isArray(columns)) {
+      return res.status(400).json({ error: 'Invalid columns data' });
+    }
+    
+    // Check if user already has preferences
+    const existingPrefs = await runQuery(
+      'SELECT * FROM user_preferences WHERE user_id = ? AND preference_type = ?',
+      [req.user.id, 'inventory_columns']
+    );
+    
+    if (existingPrefs.length > 0) {
+      // Update existing preferences
+      await runStatement(
+        'UPDATE user_preferences SET preference_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [JSON.stringify(columns), existingPrefs[0].id]
+      );
+    } else {
+      // Create new preferences
+      await runStatement(
+        'INSERT INTO user_preferences (user_id, preference_type, preference_data) VALUES (?, ?, ?)',
+        [req.user.id, 'inventory_columns', JSON.stringify(columns)]
+      );
+    }
+    
+    res.json({ message: 'Column preferences saved successfully' });
+  } catch (error) {
+    console.error('Error saving column preferences:', error);
+    res.status(500).json({ error: 'Failed to save column preferences' });
+  }
+});
+
+// Get column preferences
+router.get('/column-preferences', async (req, res) => {
+  try {
+    const preferences = await runQuery(
+      'SELECT preference_data FROM user_preferences WHERE user_id = ? AND preference_type = ?',
+      [req.user.id, 'inventory_columns']
+    );
+    
+    if (preferences.length > 0) {
+      const columns = JSON.parse(preferences[0].preference_data);
+      res.json({ columns });
+    } else {
+      res.json({ columns: null });
+    }
+  } catch (error) {
+    console.error('Error fetching column preferences:', error);
+    res.status(500).json({ error: 'Failed to fetch column preferences' });
   }
 });
 

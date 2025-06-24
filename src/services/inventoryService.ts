@@ -234,5 +234,83 @@ export const inventoryService = {
     } else {
       return this.exportCSV(options.columns, options.columnWidths);
     }
+  },
+
+  // New methods for stock movement and adjustments
+  async getStockMovements(params: any = {}) {
+    try {
+      const queryString = new URLSearchParams(params).toString();
+      const response = await fetch(`${API_BASE}/inventory/stock-movements?${queryString}`, {
+        headers: getAuthHeaders(),
+      });
+
+      const result = await handleResponse(response);
+      return {
+        movements: Array.isArray(result?.movements) ? result.movements : [],
+        pagination: result?.pagination || { page: 1, limit: 50, total: 0, pages: 0 }
+      };
+    } catch (error) {
+      console.error('Error fetching stock movements:', error);
+      return {
+        movements: [],
+        pagination: { page: 1, limit: 50, total: 0, pages: 0 }
+      };
+    }
+  },
+
+  async adjustStock(adjustmentData: any) {
+    const response = await fetch(`${API_BASE}/inventory/adjust-stock`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(adjustmentData),
+    });
+
+    return handleResponse(response);
+  },
+
+  async exportStockMovementsCSV(params: any = {}) {
+    const token = localStorage.getItem('token');
+    let url = `${API_BASE}/inventory/stock-movements/export/csv`;
+    
+    const queryString = new URLSearchParams(params).toString();
+    if (queryString) {
+      url += `?${queryString}`;
+    }
+    
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to export stock movements CSV');
+    }
+
+    return response.blob();
+  },
+
+  async saveColumnPreferences(columns: any[]) {
+    const response = await fetch(`${API_BASE}/inventory/column-preferences`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ columns }),
+    });
+
+    return handleResponse(response);
+  },
+
+  async getColumnPreferences() {
+    try {
+      const response = await fetch(`${API_BASE}/inventory/column-preferences`, {
+        headers: getAuthHeaders(),
+      });
+
+      const result = await handleResponse(response);
+      return Array.isArray(result?.columns) ? result.columns : null;
+    } catch (error) {
+      console.error('Error fetching column preferences:', error);
+      return null;
+    }
   }
 };
