@@ -1,6 +1,6 @@
 import { runStatement, runQuery } from './connection.js';
 import bcrypt from 'bcryptjs';
-import { addSampleInventoryData } from './sample-data.js';
+import { addSampleInventoryData, addSampleBOMData } from './sample-data.js';
 import { createInitialSchema } from './migrations/initial-schema.js';
 import { createInventoryTables } from './migrations/inventory-tables.js';
 import { createAuditTables } from './migrations/audit-tables.js';
@@ -77,17 +77,6 @@ export const runMigrations = async () => {
       )
     `);
 
-    // Create default admin user BEFORE running migrations to satisfy foreign key constraints
-    const existingAdmin = await runQuery('SELECT * FROM users WHERE username = ?', ['admin']);
-    if (existingAdmin.length === 0) {
-      const hashedPassword = await bcrypt.hash('admin123', 10);
-      await runStatement(
-        'INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)',
-        ['admin', 'admin@wms.local', hashedPassword, 'admin']
-      );
-      console.log('Default admin user created');
-    }
-
     // Get executed migrations
     const executedMigrations = await runQuery('SELECT version FROM migrations ORDER BY version');
     const executedVersions = executedMigrations.map(m => m.version);
@@ -114,8 +103,22 @@ export const runMigrations = async () => {
       }
     }
 
+    // Create default admin user AFTER migrations have run to ensure users table exists
+    const existingAdmin = await runQuery('SELECT * FROM users WHERE username = ?', ['admin']);
+    if (existingAdmin.length === 0) {
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      await runStatement(
+        'INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)',
+        ['admin', 'admin@wms.local', hashedPassword, 'admin']
+      );
+      console.log('Default admin user created');
+    }
+
     // Add sample inventory data
     await addSampleInventoryData();
+
+    // Add sample BOM data AFTER admin user is created
+    await addSampleBOMData();
 
     console.log('All migrations completed successfully');
   } catch (error) {

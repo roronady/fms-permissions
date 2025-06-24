@@ -122,23 +122,6 @@ export const createBOMTables = async () => {
     CREATE INDEX IF NOT EXISTS idx_bom_components_sort_order ON bom_components(bom_id, sort_order);
     CREATE INDEX IF NOT EXISTS idx_bom_operations_bom ON bom_operations(bom_id);
     CREATE INDEX IF NOT EXISTS idx_bom_operations_sequence ON bom_operations(bom_id, sequence_number);
-
-    -- Insert sample BOM data for kitchen cabinet manufacturing
-    INSERT OR IGNORE INTO bill_of_materials (name, description, version, status, created_by) VALUES 
-    ('Base Cabinet 24"', 'Standard 24-inch base cabinet with door and drawer', '1.0', 'active', 1),
-    ('Wall Cabinet 30"', 'Standard 30-inch wall cabinet with adjustable shelves', '1.0', 'active', 1),
-    ('Drawer Box 18"', 'Standard 18-inch drawer box assembly', '1.0', 'active', 1),
-    ('Cabinet Door 24x30', 'Raised panel cabinet door 24" x 30"', '1.0', 'active', 1),
-    ('Face Frame Assembly', 'Standard face frame for base cabinet', '1.0', 'active', 1);
-
-    -- Insert sample operations for cabinet manufacturing
-    INSERT OR IGNORE INTO bom_operations (bom_id, operation_name, description, sequence_number, estimated_time_minutes, labor_rate, machine_required, skill_level) VALUES 
-    (1, 'Cut Parts', 'Cut all cabinet parts to size', 1, 45, 25.00, 'Table Saw', 'intermediate'),
-    (1, 'Drill Holes', 'Drill shelf pin and hinge holes', 2, 30, 22.00, 'Drill Press', 'basic'),
-    (1, 'Sand Parts', 'Sand all parts to 220 grit', 3, 60, 18.00, 'Random Orbital Sander', 'basic'),
-    (1, 'Assemble Cabinet', 'Assemble cabinet box with glue and screws', 4, 90, 28.00, 'Assembly Table', 'intermediate'),
-    (1, 'Install Hardware', 'Install hinges, drawer slides, and handles', 5, 45, 25.00, 'Hand Tools', 'intermediate'),
-    (1, 'Final Inspection', 'Quality check and final adjustments', 6, 15, 30.00, 'None', 'advanced');
   `;
 
   const statements = sql.split(';').filter(stmt => stmt.trim());
