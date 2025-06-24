@@ -13,7 +13,6 @@ import { createPurchaseOrderTables } from './migrations/purchase-order-tables.js
 import { createBOMTables } from './migrations/create-bom-tables.js';
 import { createStockMovementsTable } from './migrations/stock-movements-table.js';
 import { createProductionOrdersTables } from './migrations/production-orders-tables.js';
-import { addItemTypeToInventory } from './migrations/add-item-type-to-inventory.js';
 
 const migrations = [
   {
@@ -75,11 +74,6 @@ const migrations = [
     version: 15,
     name: 'production_orders_tables',
     execute: createProductionOrdersTables
-  },
-  {
-    version: 16,
-    name: 'add_item_type_to_inventory',
-    execute: addItemTypeToInventory
   }
 ];
 
