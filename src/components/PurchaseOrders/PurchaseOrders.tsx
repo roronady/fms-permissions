@@ -1,0 +1,326 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  ShoppingCart, 
+  Plus, 
+  Search, 
+  RefreshCw,
+  Eye,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Package,
+  Truck,
+  Calendar,
+  DollarSign,
+  Send,
+  Edit,
+  Trash2
+} from 'lucide-react';
+import { purchaseOrderService } from '../../services/purchaseOrderService';
+import { useSocket } from '../../contexts/SocketContext';
+import { useAuth } from '../../contexts/AuthContext';
+import CreatePOModal from './CreatePOModal';
+import EditPOModal from './EditPOModal';
+import ViewPOModal from './ViewPOModal';
+import CreateFromRequisitionModal from './CreateFromRequisitionModal';
+import ReceiveItemsModal from './ReceiveItemsModal';
+import POApprovalModal from './POApprovalModal';
+import { POStatsCards, POFilters, POTable } from './PurchaseOrderComponents';
+
+interface PurchaseOrder {
+  id: number;
+  po_number: string;
+  title: string;
+  description: string;
+  supplier_id: number;
+  supplier_name: string;
+  supplier_contact: string;
+  status: 'draft' | 'pending_approval' | 'approved' | 'sent' | 'partially_received' | 'received' | 'cancelled';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  order_date: string;
+  expected_delivery_date: string;
+  actual_delivery_date: string;
+  total_amount: number;
+  item_count: number;
+  created_by: number;
+  created_by_name: string;
+  approved_by_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+const PurchaseOrders: React.FC = () => {
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showCreateFromReqModal, setShowCreateFromReqModal] = useState(false);
+  const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
+  const [stats, setStats] = useState({
+    total_pos: 0,
+    draft_count: 0,
+    pending_approval_count: 0,
+    approved_count: 0,
+    sent_count: 0,
+    partially_received_count: 0,
+    received_count: 0,
+    cancelled_count: 0,
+    total_value: 0,
+    avg_order_value: 0
+  });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 50,
+    total: 0,
+    pages: 0
+  });
+
+  const { socket } = useSocket();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    loadPurchaseOrders();
+    loadStats();
+  }, [searchTerm, statusFilter, pagination.page]);
+
+  useEffect(() => {
+    if (socket && socket.connected) {
+      try {
+        socket.emit('join', 'po_updates');
+        
+        const handlePOCreated = () => {
+          loadPurchaseOrders();
+          loadStats();
+        };
+        
+        const handlePOUpdated = () => {
+          loadPurchaseOrders();
+          loadStats();
+        };
+
+        socket.on('po_created', handlePOCreated);
+        socket.on('po_updated', handlePOUpdated);
+
+        return () => {
+          socket.off('po_created', handlePOCreated);
+          socket.off('po_updated', handlePOUpdated);
+        };
+      } catch (error) {
+        console.error('Error setting up socket listeners:', error);
+      }
+    }
+  }, [socket]);
+
+  const loadPurchaseOrders = async () => {
+    try {
+      setLoading(true);
+      const params: any = {
+        page: pagination.page,
+        limit: pagination.limit
+      };
+
+      if (searchTerm) params.search = searchTerm;
+      if (statusFilter !== 'all') params.status = statusFilter;
+
+      const response = await purchaseOrderService.getPurchaseOrders(params);
+      setPurchaseOrders(Array.isArray(response.purchaseOrders) ? response.purchaseOrders : []);
+      setPagination(response.pagination || { page: 1, limit: 50, total: 0, pages: 0 });
+    } catch (error) {
+      console.error('Error loading purchase orders:', error);
+      setPurchaseOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadStats = async () => {
+    try {
+      const statsData = await purchaseOrderService.getStats();
+      setStats(statsData);
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
+  };
+
+  const handleView = (po: PurchaseOrder) => {
+    setSelectedPO(po);
+    setShowViewModal(true);
+  };
+
+  const handleEdit = (po: PurchaseOrder) => {
+    setSelectedPO(po);
+    setShowEditModal(true);
+  };
+
+  const handleQuickApproval = (po: PurchaseOrder) => {
+    setSelectedPO(po);
+    setShowApprovalModal(true);
+  };
+
+  const handlePartialApproval = (po: PurchaseOrder) => {
+    setSelectedPO(po);
+    setShowApprovalModal(true);
+  };
+
+  const handleReceiveItems = (po: PurchaseOrder) => {
+    setSelectedPO(po);
+    setShowReceiveModal(true);
+  };
+
+  const handleDelete = async (po: PurchaseOrder) => {
+    if (confirm(`Are you sure you want to delete purchase order "${po.po_number}"?`)) {
+      try {
+        await purchaseOrderService.deletePurchaseOrder(po.id);
+        loadPurchaseOrders();
+        loadStats();
+      } catch (error) {
+        console.error('Error deleting purchase order:', error);
+        alert('Failed to delete purchase order');
+      }
+    }
+  };
+
+  const handleStatusUpdate = async (po: PurchaseOrder, newStatus: string) => {
+    try {
+      await purchaseOrderService.updateStatus(po.id, { status: newStatus });
+      loadPurchaseOrders();
+      loadStats();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Failed to update status');
+    }
+  };
+
+  const handleModalSuccess = () => {
+    loadPurchaseOrders();
+    loadStats();
+    setShowCreateModal(false);
+    setShowEditModal(false);
+    setShowCreateFromReqModal(false);
+    setShowReceiveModal(false);
+    setShowApprovalModal(false);
+    setSelectedPO(null);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Purchase Orders</h1>
+          <p className="text-gray-600">Manage purchase orders and supplier relationships</p>
+        </div>
+        <div className="flex space-x-3">
+          <button
+            onClick={loadPurchaseOrders}
+            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </button>
+          <button
+            onClick={() => setShowCreateFromReqModal(true)}
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Package className="h-4 w-4 mr-2" />
+            From Requisition
+          </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            New PO
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <POStatsCards stats={stats} />
+
+      {/* Filters */}
+      <POFilters 
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+      />
+
+      {/* Purchase Orders Table */}
+      <POTable
+        purchaseOrders={purchaseOrders}
+        loading={loading}
+        pagination={pagination}
+        setPagination={setPagination}
+        user={user}
+        onView={handleView}
+        onEdit={handleEdit}
+        onQuickApproval={handleQuickApproval}
+        onPartialApproval={handlePartialApproval}
+        onStatusUpdate={handleStatusUpdate}
+        onReceiveItems={handleReceiveItems}
+        onDelete={handleDelete}
+        onCreateNew={() => setShowCreateModal(true)}
+      />
+
+      {/* Modals */}
+      <CreatePOModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={handleModalSuccess}
+      />
+
+      <EditPOModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedPO(null);
+        }}
+        onSuccess={handleModalSuccess}
+        purchaseOrder={selectedPO}
+      />
+
+      <ViewPOModal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedPO(null);
+        }}
+        purchaseOrder={selectedPO}
+      />
+
+      <CreateFromRequisitionModal
+        isOpen={showCreateFromReqModal}
+        onClose={() => setShowCreateFromReqModal(false)}
+        onSuccess={handleModalSuccess}
+      />
+
+      <ReceiveItemsModal
+        isOpen={showReceiveModal}
+        onClose={() => {
+          setShowReceiveModal(false);
+          setSelectedPO(null);
+        }}
+        onSuccess={handleModalSuccess}
+        purchaseOrder={selectedPO}
+      />
+
+      <POApprovalModal
+        isOpen={showApprovalModal}
+        onClose={() => {
+          setShowApprovalModal(false);
+          setSelectedPO(null);
+        }}
+        onSuccess={handleModalSuccess}
+        purchaseOrder={selectedPO}
+      />
+    </div>
+  );
+};
+
+export default PurchaseOrders;
