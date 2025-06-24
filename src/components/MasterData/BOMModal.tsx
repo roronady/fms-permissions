@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, FileText, Save, Plus, Trash2, Package, PenTool as Tool } from 'lucide-react';
+import { X, FileText, Save, Plus, Trash2, Package, PenTool as Tool, Layers } from 'lucide-react';
 import { bomService } from '../../services/bomService';
 import { inventoryService } from '../../services/inventoryService';
 
@@ -21,7 +21,15 @@ const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose, onSuccess, bom }) 
   });
 
   const [components, setComponents] = useState<any[]>([
-    { item_id: '', quantity: 1, unit_id: '', waste_factor: 0, notes: '' }
+    { 
+      component_type: 'item', // 'item' or 'bom'
+      item_id: '', 
+      component_bom_id: '',
+      quantity: 1, 
+      unit_id: '', 
+      waste_factor: 0, 
+      notes: '' 
+    }
   ]);
 
   const [operations, setOperations] = useState<any[]>([
@@ -29,6 +37,7 @@ const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose, onSuccess, bom }) 
   ]);
 
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [bomsList, setBomsList] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -48,8 +57,10 @@ const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose, onSuccess, bom }) 
     try {
       const dropdownData = await inventoryService.getDropdownData();
       const inventoryResponse = await inventoryService.getItems({ limit: 1000 });
+      const bomsResponse = await bomService.getBOMs({ limit: 1000 });
       
       setInventoryItems(inventoryResponse.items || []);
+      setBomsList(bomsResponse.boms || []);
       setUnits(dropdownData.units || []);
     } catch (error) {
       console.error('Error loading dropdown data:', error);
@@ -74,15 +85,28 @@ const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose, onSuccess, bom }) 
       });
 
       if (bomDetails.components && bomDetails.components.length > 0) {
-        setComponents(bomDetails.components.map((comp: any) => ({
-          item_id: comp.item_id,
-          quantity: comp.quantity,
-          unit_id: comp.unit_id,
-          waste_factor: comp.waste_factor || 0,
-          notes: comp.notes || ''
-        })));
+        setComponents(bomDetails.components.map((comp: any) => {
+          const componentType = comp.component_type || (comp.item_id ? 'item' : 'bom');
+          return {
+            component_type: componentType,
+            item_id: comp.item_id || '',
+            component_bom_id: comp.component_bom_id || '',
+            quantity: comp.quantity,
+            unit_id: comp.unit_id,
+            waste_factor: comp.waste_factor || 0,
+            notes: comp.notes || ''
+          };
+        }));
       } else {
-        setComponents([{ item_id: '', quantity: 1, unit_id: '', waste_factor: 0, notes: '' }]);
+        setComponents([{ 
+          component_type: 'item',
+          item_id: '', 
+          component_bom_id: '',
+          quantity: 1, 
+          unit_id: '', 
+          waste_factor: 0, 
+          notes: '' 
+        }]);
       }
 
       if (bomDetails.operations && bomDetails.operations.length > 0) {
@@ -115,7 +139,15 @@ const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose, onSuccess, bom }) 
       status: 'draft',
       overhead_cost: 0
     });
-    setComponents([{ item_id: '', quantity: 1, unit_id: '', waste_factor: 0, notes: '' }]);
+    setComponents([{ 
+      component_type: 'item',
+      item_id: '', 
+      component_bom_id: '',
+      quantity: 1, 
+      unit_id: '', 
+      waste_factor: 0, 
+      notes: '' 
+    }]);
     setOperations([{ operation_name: '', description: '', estimated_time_minutes: 30, labor_rate: 25, machine_required: '', skill_level: 'basic', notes: '' }]);
     setError('');
   };
@@ -127,7 +159,15 @@ const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose, onSuccess, bom }) 
 
     try {
       // Validate components
-      const validComponents = components.filter(comp => comp.item_id && comp.quantity > 0);
+      const validComponents = components.filter(comp => {
+        if (comp.component_type === 'item') {
+          return comp.item_id && comp.quantity > 0;
+        } else if (comp.component_type === 'bom') {
+          return comp.component_bom_id && comp.quantity > 0;
+        }
+        return false;
+      });
+      
       if (validComponents.length === 0) {
         setError('Please add at least one component to the BOM');
         setLoading(false);
@@ -142,17 +182,41 @@ const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose, onSuccess, bom }) 
         return;
       }
 
-      const bomData = {
-        ...formData,
-        finished_product_id: formData.finished_product_id ? parseInt(formData.finished_product_id) : null,
-        overhead_cost: parseFloat(formData.overhead_cost.toString()),
-        components: validComponents.map(comp => ({
-          ...comp,
-          item_id: parseInt(comp.item_id.toString()),
+      // Check for circular references in sub-BOMs
+      if (bom) {
+        const bomId = bom.id;
+        for (const comp of validComponents) {
+          if (comp.component_type === 'bom' && comp.component_bom_id === bomId) {
+            setError('A BOM cannot reference itself as a component');
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      // Prepare components data
+      const preparedComponents = validComponents.map(comp => {
+        const prepared: any = {
           quantity: parseFloat(comp.quantity.toString()),
           unit_id: comp.unit_id ? parseInt(comp.unit_id.toString()) : null,
-          waste_factor: parseFloat(comp.waste_factor.toString())
-        })),
+          waste_factor: parseFloat(comp.waste_factor.toString()),
+          notes: comp.notes
+        };
+
+        if (comp.component_type === 'item') {
+          prepared.item_id = parseInt(comp.item_id.toString());
+        } else if (comp.component_type === 'bom') {
+          prepared.component_bom_id = parseInt(comp.component_bom_id.toString());
+        }
+
+        return prepared;
+      });
+
+      const bomData = {
+        ...formData,
+        finished_product_id: formData.finished_product_id ? parseInt(formData.finished_product_id.toString()) : null,
+        overhead_cost: parseFloat(formData.overhead_cost.toString()),
+        components: preparedComponents,
         operations: validOperations.map(op => ({
           ...op,
           estimated_time_minutes: parseInt(op.estimated_time_minutes.toString()),
@@ -182,6 +246,21 @@ const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose, onSuccess, bom }) 
     }));
   };
 
+  const handleComponentTypeChange = (index: number, type: 'item' | 'bom') => {
+    setComponents(prev => prev.map((comp, i) => {
+      if (i === index) {
+        return { 
+          ...comp, 
+          component_type: type,
+          // Clear the other ID field
+          item_id: type === 'item' ? comp.item_id : '',
+          component_bom_id: type === 'bom' ? comp.component_bom_id : ''
+        };
+      }
+      return comp;
+    }));
+  };
+
   const handleComponentChange = (index: number, field: string, value: any) => {
     setComponents(prev => prev.map((comp, i) => {
       if (i === index) {
@@ -201,7 +280,15 @@ const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose, onSuccess, bom }) 
   };
 
   const addComponent = () => {
-    setComponents(prev => [...prev, { item_id: '', quantity: 1, unit_id: '', waste_factor: 0, notes: '' }]);
+    setComponents(prev => [...prev, { 
+      component_type: 'item',
+      item_id: '', 
+      component_bom_id: '',
+      quantity: 1, 
+      unit_id: '', 
+      waste_factor: 0, 
+      notes: '' 
+    }]);
   };
 
   const removeComponent = (index: number) => {
@@ -222,11 +309,20 @@ const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose, onSuccess, bom }) 
 
   // Calculate estimated costs
   const calculateComponentCost = (component: any) => {
-    const item = inventoryItems.find(i => i.id.toString() === component.item_id.toString());
-    const unitPrice = item ? item.unit_price : 0;
-    const quantity = parseFloat(component.quantity) || 0;
-    const wasteFactor = parseFloat(component.waste_factor) || 0;
-    return unitPrice * quantity * (1 + wasteFactor);
+    if (component.component_type === 'item') {
+      const item = inventoryItems.find(i => i.id.toString() === component.item_id.toString());
+      const unitPrice = item ? item.unit_price : 0;
+      const quantity = parseFloat(component.quantity) || 0;
+      const wasteFactor = parseFloat(component.waste_factor) || 0;
+      return unitPrice * quantity * (1 + wasteFactor);
+    } else if (component.component_type === 'bom') {
+      const subBom = bomsList.find(b => b.id.toString() === component.component_bom_id.toString());
+      const unitCost = subBom ? subBom.total_cost : 0;
+      const quantity = parseFloat(component.quantity) || 0;
+      const wasteFactor = parseFloat(component.waste_factor) || 0;
+      return unitCost * quantity * (1 + wasteFactor);
+    }
+    return 0;
   };
 
   const calculateTotalComponentCost = () => {
@@ -247,6 +343,9 @@ const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose, onSuccess, bom }) 
     const overheadCost = parseFloat(formData.overhead_cost.toString()) || 0;
     return materialCost + laborCost + overheadCost;
   };
+
+  // Filter out the current BOM from the dropdown to prevent circular references
+  const filteredBomsList = bomsList.filter(b => !bom || b.id !== bom.id);
 
   if (!isOpen) return null;
 
@@ -403,8 +502,14 @@ const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose, onSuccess, bom }) 
                   <div key={index} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center">
-                        <Package className="h-5 w-5 text-blue-500 mr-2" />
-                        <span className="font-medium text-gray-900">Component {index + 1}</span>
+                        {component.component_type === 'item' ? (
+                          <Package className="h-5 w-5 text-blue-500 mr-2" />
+                        ) : (
+                          <Layers className="h-5 w-5 text-purple-500 mr-2" />
+                        )}
+                        <span className="font-medium text-gray-900">
+                          {component.component_type === 'item' ? 'Inventory Item' : 'Sub-Assembly (BOM)'}
+                        </span>
                       </div>
                       {components.length > 1 && (
                         <button
@@ -417,24 +522,73 @@ const BOMModal: React.FC<BOMModalProps> = ({ isOpen, onClose, onSuccess, bom }) 
                       )}
                     </div>
 
+                    {/* Component Type Selection */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Component Type *
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleComponentTypeChange(index, 'item')}
+                          className={`flex items-center justify-center px-4 py-3 rounded-lg border-2 transition-colors ${
+                            component.component_type === 'item'
+                              ? 'border-blue-500 bg-blue-50 text-blue-700'
+                              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          <Package className="h-5 w-5 mr-2" />
+                          Inventory Item
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleComponentTypeChange(index, 'bom')}
+                          className={`flex items-center justify-center px-4 py-3 rounded-lg border-2 transition-colors ${
+                            component.component_type === 'bom'
+                              ? 'border-purple-500 bg-purple-50 text-purple-700'
+                              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          <Layers className="h-5 w-5 mr-2" />
+                          Sub-Assembly (BOM)
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="lg:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Item *
+                          {component.component_type === 'item' ? 'Item *' : 'Sub-Assembly (BOM) *'}
                         </label>
-                        <select
-                          value={component.item_id}
-                          onChange={(e) => handleComponentChange(index, 'item_id', e.target.value)}
-                          required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="">Select Item</option>
-                          {inventoryItems.map(item => (
-                            <option key={item.id} value={item.id}>
-                              {item.name} ({item.sku})
-                            </option>
-                          ))}
-                        </select>
+                        {component.component_type === 'item' ? (
+                          <select
+                            value={component.item_id}
+                            onChange={(e) => handleComponentChange(index, 'item_id', e.target.value)}
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="">Select Item</option>
+                            {inventoryItems.map(item => (
+                              <option key={item.id} value={item.id}>
+                                {item.name} ({item.sku})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <select
+                            value={component.component_bom_id}
+                            onChange={(e) => handleComponentChange(index, 'component_bom_id', e.target.value)}
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="">Select BOM</option>
+                            {filteredBomsList.map(subBom => (
+                              <option key={subBom.id} value={subBom.id}>
+                                {subBom.name} (v{subBom.version})
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </div>
 
                       <div>

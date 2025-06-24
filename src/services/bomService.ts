@@ -102,5 +102,19 @@ export const bomService = {
     });
 
     return handleResponse(response);
+  },
+
+  async getBOMDropdownList() {
+    try {
+      const response = await fetch(`${API_BASE}/boms/dropdown/list`, {
+        headers: getAuthHeaders(),
+      });
+
+      const result = await handleResponse(response);
+      return Array.isArray(result) ? result : [];
+    } catch (error) {
+      console.error('Error fetching BOM dropdown list:', error);
+      return [];
+    }
   }
 };

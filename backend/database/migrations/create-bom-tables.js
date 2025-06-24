@@ -25,6 +25,7 @@ export const createBOMTables = async () => {
           - \`id\` (integer, primary key)
           - \`bom_id\` (integer, foreign key to bill_of_materials)
           - \`item_id\` (integer, foreign key to inventory_items)
+          - \`component_bom_id\` (integer, foreign key to bill_of_materials) - For multi-level BOMs
           - \`quantity\` (decimal, not null) - Required quantity of this component
           - \`unit_id\` (integer, foreign key to units)
           - \`unit_cost\` (decimal) - Cost per unit at time of BOM creation
@@ -83,7 +84,8 @@ export const createBOMTables = async () => {
     CREATE TABLE IF NOT EXISTS bom_components (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       bom_id INTEGER NOT NULL,
-      item_id INTEGER NOT NULL,
+      item_id INTEGER,
+      component_bom_id INTEGER,
       quantity DECIMAL(10,4) NOT NULL,
       unit_id INTEGER,
       unit_cost DECIMAL(10,4) DEFAULT 0,
@@ -94,7 +96,9 @@ export const createBOMTables = async () => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (bom_id) REFERENCES bill_of_materials(id) ON DELETE CASCADE,
       FOREIGN KEY (item_id) REFERENCES inventory_items(id),
-      FOREIGN KEY (unit_id) REFERENCES units(id)
+      FOREIGN KEY (component_bom_id) REFERENCES bill_of_materials(id),
+      FOREIGN KEY (unit_id) REFERENCES units(id),
+      CHECK ((item_id IS NULL AND component_bom_id IS NOT NULL) OR (item_id IS NOT NULL AND component_bom_id IS NULL))
     );
 
     -- BOM Operations table for manufacturing processes
@@ -119,6 +123,7 @@ export const createBOMTables = async () => {
     CREATE INDEX IF NOT EXISTS idx_bill_of_materials_created_by ON bill_of_materials(created_by);
     CREATE INDEX IF NOT EXISTS idx_bom_components_bom ON bom_components(bom_id);
     CREATE INDEX IF NOT EXISTS idx_bom_components_item ON bom_components(item_id);
+    CREATE INDEX IF NOT EXISTS idx_bom_components_component_bom ON bom_components(component_bom_id);
     CREATE INDEX IF NOT EXISTS idx_bom_components_sort_order ON bom_components(bom_id, sort_order);
     CREATE INDEX IF NOT EXISTS idx_bom_operations_bom ON bom_operations(bom_id);
     CREATE INDEX IF NOT EXISTS idx_bom_operations_sequence ON bom_operations(bom_id, sequence_number);

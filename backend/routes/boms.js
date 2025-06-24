@@ -105,7 +105,7 @@ router.get('/:id', async (req, res) => {
 
     const bom = boms[0];
 
-    // Get BOM components
+    // Get BOM components (including sub-BOMs)
     const components = await runQuery(`
       SELECT 
         bc.*,
@@ -114,11 +114,20 @@ router.get('/:id', async (req, res) => {
         i.description as item_description,
         u.name as unit_name,
         u.abbreviation as unit_abbreviation,
-        c.name as category_name
+        c.name as category_name,
+        sub_bom.name as component_bom_name,
+        sub_bom.version as component_bom_version,
+        sub_bom.total_cost as component_bom_cost,
+        CASE 
+          WHEN bc.item_id IS NOT NULL THEN 'item'
+          WHEN bc.component_bom_id IS NOT NULL THEN 'bom'
+          ELSE NULL
+        END as component_type
       FROM bom_components bc
       LEFT JOIN inventory_items i ON bc.item_id = i.id
       LEFT JOIN units u ON bc.unit_id = u.id
       LEFT JOIN categories c ON i.category_id = c.id
+      LEFT JOIN bill_of_materials sub_bom ON bc.component_bom_id = sub_bom.id
       WHERE bc.bom_id = ?
       ORDER BY bc.sort_order
     `, [bomId]);
@@ -195,21 +204,39 @@ router.post('/', async (req, res) => {
     if (components && Array.isArray(components) && components.length > 0) {
       for (let i = 0; i < components.length; i++) {
         const component = components[i];
-        if (!component.item_id || !component.quantity) continue;
+        
+        // Validate that either item_id or component_bom_id is provided, but not both
+        if ((!component.item_id && !component.component_bom_id) || 
+            (component.item_id && component.component_bom_id)) {
+          continue; // Skip invalid components
+        }
+        
+        if (!component.quantity || component.quantity <= 0) continue;
 
-        // Get current item price
-        const items = await runQuery('SELECT unit_price FROM inventory_items WHERE id = ?', [component.item_id]);
-        const unitCost = items.length > 0 ? items[0].unit_price : 0;
-        const totalCost = (component.quantity * unitCost) * (1 + (component.waste_factor || 0));
+        let unitCost = 0;
+        let totalCost = 0;
+
+        if (component.item_id) {
+          // Get current item price
+          const items = await runQuery('SELECT unit_price FROM inventory_items WHERE id = ?', [component.item_id]);
+          unitCost = items.length > 0 ? items[0].unit_price : 0;
+          totalCost = (component.quantity * unitCost) * (1 + (component.waste_factor || 0));
+        } else if (component.component_bom_id) {
+          // Get sub-BOM cost
+          const subBoms = await runQuery('SELECT total_cost FROM bill_of_materials WHERE id = ?', [component.component_bom_id]);
+          unitCost = subBoms.length > 0 ? subBoms[0].total_cost : 0;
+          totalCost = (component.quantity * unitCost) * (1 + (component.waste_factor || 0));
+        }
 
         await runStatement(`
           INSERT INTO bom_components (
-            bom_id, item_id, quantity, unit_id, unit_cost, total_cost,
+            bom_id, item_id, component_bom_id, quantity, unit_id, unit_cost, total_cost,
             waste_factor, notes, sort_order
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
           bomId,
-          component.item_id,
+          component.item_id || null,
+          component.component_bom_id || null,
           component.quantity,
           component.unit_id || null,
           component.unit_cost || unitCost,
@@ -318,21 +345,39 @@ router.put('/:id', async (req, res) => {
       // Add new components
       for (let i = 0; i < components.length; i++) {
         const component = components[i];
-        if (!component.item_id || !component.quantity) continue;
+        
+        // Validate that either item_id or component_bom_id is provided, but not both
+        if ((!component.item_id && !component.component_bom_id) || 
+            (component.item_id && component.component_bom_id)) {
+          continue; // Skip invalid components
+        }
+        
+        if (!component.quantity || component.quantity <= 0) continue;
 
-        // Get current item price
-        const items = await runQuery('SELECT unit_price FROM inventory_items WHERE id = ?', [component.item_id]);
-        const unitCost = items.length > 0 ? items[0].unit_price : 0;
-        const totalCost = (component.quantity * unitCost) * (1 + (component.waste_factor || 0));
+        let unitCost = 0;
+        let totalCost = 0;
+
+        if (component.item_id) {
+          // Get current item price
+          const items = await runQuery('SELECT unit_price FROM inventory_items WHERE id = ?', [component.item_id]);
+          unitCost = items.length > 0 ? items[0].unit_price : 0;
+          totalCost = (component.quantity * unitCost) * (1 + (component.waste_factor || 0));
+        } else if (component.component_bom_id) {
+          // Get sub-BOM cost
+          const subBoms = await runQuery('SELECT total_cost FROM bill_of_materials WHERE id = ?', [component.component_bom_id]);
+          unitCost = subBoms.length > 0 ? subBoms[0].total_cost : 0;
+          totalCost = (component.quantity * unitCost) * (1 + (component.waste_factor || 0));
+        }
 
         await runStatement(`
           INSERT INTO bom_components (
-            bom_id, item_id, quantity, unit_id, unit_cost, total_cost,
+            bom_id, item_id, component_bom_id, quantity, unit_id, unit_cost, total_cost,
             waste_factor, notes, sort_order
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
           bomId,
-          component.item_id,
+          component.item_id || null,
+          component.component_bom_id || null,
           component.quantity,
           component.unit_id || null,
           component.unit_cost || unitCost,
@@ -401,6 +446,19 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'BOM not found' });
     }
 
+    // Check if this BOM is used as a component in other BOMs
+    const usedAsComponent = await runQuery(
+      'SELECT COUNT(*) as count FROM bom_components WHERE component_bom_id = ?',
+      [bomId]
+    );
+    
+    if (usedAsComponent[0].count > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete BOM that is used as a component in other BOMs',
+        usedCount: usedAsComponent[0].count
+      });
+    }
+
     // Delete BOM (components and operations will be deleted via CASCADE)
     await runStatement('DELETE FROM bill_of_materials WHERE id = ?', [bomId]);
 
@@ -413,16 +471,81 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Get all BOMs for dropdown selection (simplified list)
+router.get('/dropdown/list', async (req, res) => {
+  try {
+    const boms = await runQuery(`
+      SELECT id, name, version, status, total_cost
+      FROM bill_of_materials
+      WHERE status != 'archived'
+      ORDER BY name
+    `);
+    
+    res.json(boms || []);
+  } catch (error) {
+    console.error('Error fetching BOM dropdown list:', error);
+    res.status(500).json({ error: 'Failed to fetch BOM list' });
+  }
+});
+
+// Recursively calculate BOM costs
+async function calculateBOMCostRecursive(bomId) {
+  try {
+    // Get all components for this BOM
+    const components = await runQuery(`
+      SELECT 
+        bc.*,
+        CASE 
+          WHEN bc.item_id IS NOT NULL THEN 'item'
+          WHEN bc.component_bom_id IS NOT NULL THEN 'bom'
+          ELSE NULL
+        END as component_type
+      FROM bom_components bc
+      WHERE bc.bom_id = ?
+    `, [bomId]);
+    
+    let totalComponentCost = 0;
+    
+    // Calculate cost for each component
+    for (const component of components) {
+      let componentCost = 0;
+      
+      if (component.component_type === 'item') {
+        // For inventory items, use the stored unit cost
+        componentCost = component.unit_cost * component.quantity * (1 + component.waste_factor);
+      } else if (component.component_type === 'bom') {
+        // For sub-BOMs, get the latest total cost
+        const subBom = await runQuery(
+          'SELECT total_cost FROM bill_of_materials WHERE id = ?',
+          [component.component_bom_id]
+        );
+        
+        if (subBom.length > 0) {
+          componentCost = subBom[0].total_cost * component.quantity * (1 + component.waste_factor);
+        }
+      }
+      
+      // Update the component's total cost
+      await runStatement(
+        'UPDATE bom_components SET total_cost = ? WHERE id = ?',
+        [componentCost, component.id]
+      );
+      
+      totalComponentCost += componentCost;
+    }
+    
+    return totalComponentCost;
+  } catch (error) {
+    console.error('Error in recursive BOM cost calculation:', error);
+    throw error;
+  }
+}
+
 // Helper function to update BOM costs
 async function updateBOMCosts(bomId) {
   try {
-    // Calculate component costs
-    const componentCostsResult = await runQuery(`
-      SELECT SUM(total_cost) as unit_cost
-      FROM bom_components
-      WHERE bom_id = ?
-    `, [bomId]);
-    const unitCost = componentCostsResult[0]?.unit_cost || 0;
+    // Calculate component costs recursively
+    const unitCost = await calculateBOMCostRecursive(bomId);
 
     // Calculate labor costs
     const laborCostsResult = await runQuery(`
