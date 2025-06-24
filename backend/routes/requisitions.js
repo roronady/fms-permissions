@@ -302,6 +302,23 @@ router.put('/:id/issue', async (req, res) => {
         WHERE id = ?
       `, [newQuantity, item_id]);
 
+      // Record stock movement
+      await runStatement(`
+        INSERT INTO stock_movements (
+          item_id, movement_type, quantity, reference_type, 
+          reference_id, reference_number, notes, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        item_id, 
+        'out', 
+        issue_quantity, 
+        'requisition', 
+        requisitionId, 
+        `REQ-${requisitionId}`,
+        itemNotes || 'Item issued from requisition',
+        req.user.id
+      ]);
+
       // Update requisition item with issued quantity
       await runStatement(`
         UPDATE requisition_items SET

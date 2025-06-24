@@ -69,11 +69,36 @@ router.post('/:id/receive', async (req, res) => {
 
       // Update inventory if item exists and quality check passed
       if (poItem.inventory_item_id && quality_check_passed !== false) {
-        await runStatement(`
-          UPDATE inventory_items 
-          SET quantity = quantity + ?, updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?
-        `, [received_quantity, poItem.inventory_item_id]);
+        // Get current quantity
+        const inventoryItems = await runQuery('SELECT quantity FROM inventory_items WHERE id = ?', [poItem.inventory_item_id]);
+        if (inventoryItems.length > 0) {
+          const currentQuantity = inventoryItems[0].quantity;
+          const newQuantity = currentQuantity + received_quantity;
+          
+          // Update inventory quantity
+          await runStatement(`
+            UPDATE inventory_items 
+            SET quantity = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+          `, [newQuantity, poItem.inventory_item_id]);
+          
+          // Record stock movement
+          await runStatement(`
+            INSERT INTO stock_movements (
+              item_id, movement_type, quantity, reference_type, 
+              reference_id, reference_number, notes, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `, [
+            poItem.inventory_item_id, 
+            'in', 
+            received_quantity, 
+            'purchase_order', 
+            poId, 
+            `PO-${currentPO.po_number}`,
+            `Received from PO: ${currentPO.po_number}`,
+            req.user.id
+          ]);
+        }
       }
     }
 
