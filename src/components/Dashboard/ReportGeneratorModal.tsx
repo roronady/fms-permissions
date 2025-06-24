@@ -68,9 +68,9 @@ const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({ isOpen, onC
       // Generate the report based on type
       let blob;
       if (reportType === 'pdf') {
-        blob = await inventoryService.exportPDF();
+        blob = await inventoryService.exportPDF(selectedColumns, reportTitle);
       } else {
-        blob = await inventoryService.exportCSV();
+        blob = await inventoryService.exportCSV(selectedColumns);
       }
 
       // Create download link
@@ -96,9 +96,9 @@ const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({ isOpen, onC
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center">
             <FileText className="h-6 w-6 text-blue-600 mr-3" />
             <h2 className="text-xl font-semibold text-gray-900">Generate Custom Report</h2>
@@ -111,7 +111,7 @@ const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({ isOpen, onC
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 overflow-y-auto flex-grow">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
               {error}
@@ -211,7 +211,7 @@ const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({ isOpen, onC
           </div>
         </div>
 
-        <div className="flex justify-end space-x-3 p-6 border-t border-gray-200">
+        <div className="flex justify-end space-x-3 p-6 border-t border-gray-200 flex-shrink-0">
           <button
             type="button"
             onClick={onClose}
