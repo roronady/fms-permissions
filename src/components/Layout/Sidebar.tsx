@@ -86,23 +86,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             ))}
           </ul>
         </nav>
-
-        {/* User info at bottom */}
-        <div className="p-4 border-t border-gray-200 flex-shrink-0">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <span className="text-blue-600 font-medium text-sm">
-                  {user?.username?.charAt(0)?.toUpperCase() || 'U'}
-                </span>
-              </div>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-700">{user?.username || 'Unknown'}</p>
-              <p className="text-xs text-gray-500 capitalize">{user?.role || 'user'}</p>
-            </div>
-          </div>
-        </div>
       </div>
     </>
   );

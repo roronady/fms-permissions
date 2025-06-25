@@ -25,6 +25,21 @@ const SettingsPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
           <p className="text-gray-600">Manage system settings and preferences</p>
         </div>
+        
+        {/* User info */}
+        <div className="flex items-center p-4 bg-white rounded-lg shadow-sm border">
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+              <span className="text-blue-600 font-medium text-sm">
+                {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+              </span>
+            </div>
+          </div>
+          <div className="ml-3">
+            <p className="text-sm font-medium text-gray-700">{user?.username || 'Unknown'}</p>
+            <p className="text-xs text-gray-500 capitalize">{user?.role || 'user'}</p>
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}
