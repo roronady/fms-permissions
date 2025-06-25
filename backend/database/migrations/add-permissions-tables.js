@@ -161,6 +161,34 @@ export const addPermissionsTables = async () => {
         'bom.view',
         'master_data.view',
         'report.view'
+      ],
+      
+      // Add supervisor role with specific permissions
+      supervisor: [
+        // Inventory permissions
+        'inventory.view', 'inventory.create', 'inventory.edit', 'inventory.adjust_stock', 
+        'inventory.view_stock_movements', 'inventory.export',
+        
+        // Requisition permissions
+        'requisition.view', 'requisition.create', 'requisition.edit', 'requisition.approve',
+        
+        // Purchase Order permissions
+        'purchase_order.view', 'purchase_order.create',
+        
+        // Production permissions
+        'production.view',
+        
+        // BOM permissions
+        'bom.view',
+        
+        // Master Data permissions
+        'master_data.view',
+        
+        // Report permissions
+        'report.view', 'report.create',
+        
+        // Settings permissions
+        'settings.view'
       ]
     };
 
