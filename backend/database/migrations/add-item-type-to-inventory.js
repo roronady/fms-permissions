@@ -18,26 +18,38 @@ export const addItemTypeToInventory = async () => {
     */
 
     -- Add item_type column to inventory_items table if it doesn't exist
-    -- Using DO block to check if column exists first
-    DO $$
-    BEGIN
-      IF NOT EXISTS (
-        SELECT 1 FROM pragma_table_info('inventory_items') WHERE name = 'item_type'
-      ) THEN
-        -- Add the column if it doesn't exist
-        ALTER TABLE inventory_items ADD COLUMN item_type TEXT NOT NULL DEFAULT 'raw_material' 
-          CHECK (item_type IN ('raw_material', 'semi_finished_product', 'finished_product'));
-      END IF;
-    END $$;
+    ALTER TABLE inventory_items ADD COLUMN item_type TEXT NOT NULL DEFAULT 'raw_material' 
+      CHECK (item_type IN ('raw_material', 'semi_finished_product', 'finished_product'));
 
     -- Create index for better performance when filtering by item type
     CREATE INDEX IF NOT EXISTS idx_inventory_items_item_type ON inventory_items(item_type);
   `;
 
-  const statements = sql.split(';').filter(stmt => stmt.trim());
-  for (const statement of statements) {
-    if (statement.trim()) {
-      await runStatement(statement.trim());
+  // Check if column already exists before attempting to add it
+  const checkColumnSql = `SELECT COUNT(*) as count FROM pragma_table_info('inventory_items') WHERE name = 'item_type'`;
+  
+  try {
+    const result = await new Promise((resolve, reject) => {
+      const db = require('../connection.js').db;
+      db.get(checkColumnSql, (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    // Only run the migration if the column doesn't exist
+    if (result.count === 0) {
+      const statements = sql.split(';').filter(stmt => stmt.trim() && !stmt.trim().startsWith('/*'));
+      for (const statement of statements) {
+        if (statement.trim()) {
+          await runStatement(statement.trim());
+        }
+      }
+    }
+  } catch (error) {
+    // If the column already exists, SQLite will throw an error, which we can safely ignore
+    if (!error.message.includes('duplicate column name')) {
+      throw error;
     }
   }
 };
