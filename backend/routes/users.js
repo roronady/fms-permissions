@@ -63,21 +63,51 @@ router.post('/', checkPermission('user.create'), async (req, res) => {
 router.put('/:id', checkPermission('user.edit'), async (req, res) => {
   try {
     const { username, email, role, password } = req.body;
-    const userId = parseInt(req.params.id, 10);
+    const userId = req.params.id;
 
-    let sql = 'UPDATE users SET username = ?, email = ?, role = ?, updated_at = CURRENT_TIMESTAMP';
-    let params = [username, email, role];
-
-    if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      sql += ', password_hash = ?';
-      params.push(hashedPassword);
+    // Validate userId is a number
+    const userIdNum = parseInt(userId, 10);
+    if (isNaN(userIdNum)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
     }
 
-    sql += ' WHERE id = ?';
-    params.push(userId);
+    // Build the update query dynamically based on provided fields
+    const updateFields = [];
+    const updateValues = [];
 
-    await runStatement(sql, params);
+    if (username !== undefined) {
+      updateFields.push('username = ?');
+      updateValues.push(username);
+    }
+
+    if (email !== undefined) {
+      updateFields.push('email = ?');
+      updateValues.push(email);
+    }
+
+    if (role !== undefined) {
+      updateFields.push('role = ?');
+      updateValues.push(role);
+    }
+
+    if (password !== undefined && password !== '') {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateFields.push('password_hash = ?');
+      updateValues.push(hashedPassword);
+    }
+
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+
+    if (updateFields.length === 1) { // Only timestamp field
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    // Add the user ID to the end of the values array
+    updateValues.push(userIdNum);
+
+    const sql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+
+    await runStatement(sql, updateValues);
 
     res.json({ message: 'User updated successfully' });
   } catch (error) {
@@ -91,8 +121,12 @@ router.delete('/:id', checkPermission('user.delete'), async (req, res) => {
   try {
     const userId = parseInt(req.params.id, 10);
 
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
     // Prevent deleting the last admin
-    const adminCount = await runQuery('SELECT COUNT(*) as count FROM users WHERE role = "admin"');
+    const adminCount = await runQuery('SELECT COUNT(*) as count FROM users WHERE role = ?', ['admin']);
     const userToDelete = await runQuery('SELECT role FROM users WHERE id = ?', [userId]);
 
     if (userToDelete[0]?.role === 'admin' && adminCount[0].count <= 1) {
@@ -215,6 +249,10 @@ router.put('/role-permissions', checkPermission('user.manage_permissions'), asyn
 router.get('/:id/permissions', checkPermission('user.manage_permissions'), async (req, res) => {
   try {
     const userId = parseInt(req.params.id, 10);
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
     
     // Get user
     const users = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
@@ -348,6 +386,10 @@ router.get('/:id/specific-permissions', checkPermission('user.manage_permissions
   try {
     const userId = parseInt(req.params.id, 10);
     
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    
     // Get user
     const users = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
     if (users.length === 0) {
@@ -375,6 +417,10 @@ router.put('/:id/specific-permissions', checkPermission('user.manage_permissions
   try {
     const userId = parseInt(req.params.id, 10);
     const { permissions } = req.body;
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
     
     if (!Array.isArray(permissions)) {
       return res.status(400).json({ error: 'Permissions must be an array' });
