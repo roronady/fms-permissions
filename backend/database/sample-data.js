@@ -1275,7 +1275,7 @@ async function addProductionOrderItems(orderId, bomId, quantity, status) {
       itemStatus = 'partial';
     }
     
-    await runStatement(`
+    const itemResult = await runStatement(`
       INSERT INTO production_order_items (
         production_order_id, item_id, item_name, item_sku,
         component_type, component_bom_id, required_quantity, issued_quantity,
@@ -1307,7 +1307,7 @@ async function addProductionOrderItems(orderId, bomId, quantity, status) {
         ) VALUES (?, ?, ?, ?, ?)
       `, [
         orderId,
-        component.id, // This might need adjustment depending on your schema
+        itemResult.id, // Use the ID from the newly inserted production_order_items record
         issuedQuantity,
         1, // Admin user ID
         'Issued for production'
