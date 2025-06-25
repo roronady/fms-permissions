@@ -1,6 +1,6 @@
-# WMS (Warehouse Management System) Application
+# Factory Management System (FMS)
 
-A comprehensive, production-ready warehouse management system built with React, Node.js, and SQLite.
+A comprehensive, production-ready factory management system built with React, Node.js, and SQLite.
 
 ## 🚀 Quick Start
 

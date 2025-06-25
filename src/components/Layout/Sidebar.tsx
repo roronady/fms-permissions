@@ -6,7 +6,6 @@ import {
   FileText, 
   Users, 
   X,
-  Package2,
   Settings,
   ClipboardList,
   ShoppingCart,
@@ -50,8 +49,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       `}>
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
           <div className="flex items-center">
-            <Package2 className="h-8 w-8 text-blue-600" />
-            <span className="ml-2 text-xl font-semibold text-gray-900">WMS</span>
+            <img src="/logo.webp" alt="Logo" className="h-8 w-auto" />
+            <span className="ml-2 text-xl font-semibold text-gray-900">FMS</span>
           </div>
           <button
             onClick={onClose}
