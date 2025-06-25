@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Package, 
   Edit, 
@@ -36,6 +36,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   handleDeleteItem,
   handleAddItemClick
 }) => {
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
   const getStatusColor = (item: any) => {
     if (item.quantity === 0) return 'bg-red-100 text-red-800';
     if (item.is_low_stock) return 'bg-yellow-100 text-yellow-800';
@@ -75,6 +77,14 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
       case 'finished_product': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const handleImageClick = (imageUrl: string) => {
+    setPreviewImage(imageUrl);
+  };
+
+  const closeImagePreview = () => {
+    setPreviewImage(null);
   };
 
   if (loading) {
@@ -125,7 +135,10 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                       return (
                         <td key={column.id} className="px-6 py-4 whitespace-nowrap">
                           {item.image_url ? (
-                            <div className="h-10 w-10 relative rounded overflow-hidden bg-gray-100 border border-gray-200">
+                            <div 
+                              className="h-10 w-10 relative rounded overflow-hidden bg-gray-100 border border-gray-200 cursor-pointer"
+                              onClick={() => handleImageClick(item.image_url)}
+                            >
                               <img 
                                 src={item.image_url} 
                                 alt={item.name}
@@ -351,6 +364,37 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                 </button>
               </nav>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={closeImagePreview}
+        >
+          <div 
+            className="relative max-w-4xl max-h-[90vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img 
+              src={previewImage} 
+              alt="Preview" 
+              className="max-w-full max-h-[85vh] object-contain bg-white p-2 rounded"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400?text=Image+Not+Found';
+              }}
+            />
+            <button 
+              className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-lg"
+              onClick={closeImagePreview}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
           </div>
         </div>
       )}
