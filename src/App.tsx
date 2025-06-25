@@ -10,6 +10,7 @@ import Production from './components/Production/Production';
 import UserManagement from './components/Users/UserManagement';
 import MasterDataManagement from './components/MasterData/MasterDataManagement';
 import ReportDashboard from './components/Reports/ReportDashboard';
+import SettingsPage from './components/Settings/SettingsPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
 
@@ -42,6 +43,7 @@ function AppContent() {
             <Route path="/master-data" element={<MasterDataManagement />} />
             <Route path="/users" element={<UserManagement />} />
             <Route path="/reports" element={<ReportDashboard />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Layout>

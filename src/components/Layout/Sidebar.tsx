@@ -10,7 +10,8 @@ import {
   ClipboardList,
   ShoppingCart,
   Factory,
-  BarChart2
+  BarChart2,
+  Database
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -31,6 +32,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { name: 'Reports & Analytics', href: '/reports', icon: BarChart2 },
     { name: 'Master Data', href: '/master-data', icon: Settings },
     ...(user?.role === 'admin' ? [{ name: 'User Management', href: '/users', icon: Users }] : []),
+    { name: 'Settings', href: '/settings', icon: Database },
   ];
 
   return (

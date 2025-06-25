@@ -87,3 +87,22 @@ export const restoreBackup = (backupPath) => {
     throw error;
   }
 };
+
+export const listBackups = () => {
+  try {
+    const files = fs.readdirSync(backupDir)
+      .filter(file => file.startsWith('wms_backup_') && file.endsWith('.db'))
+      .map(file => ({
+        name: file,
+        path: path.join(backupDir, file),
+        size: fs.statSync(path.join(backupDir, file)).size,
+        time: fs.statSync(path.join(backupDir, file)).mtime
+      }))
+      .sort((a, b) => b.time - a.time);
+    
+    return files;
+  } catch (error) {
+    console.error('Error listing backups:', error);
+    return [];
+  }
+};

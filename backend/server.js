@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { initializeDatabase } from './database/connection.js';
 import { runMigrations } from './database/migrations.js';
+import { startBackupScheduler } from './utils/backup.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import inventoryRoutes from './routes/inventory.js';
@@ -19,6 +20,7 @@ import purchaseOrderRequisitionRoutes from './routes/purchaseOrdersRequisition.j
 import purchaseOrderStatsRoutes from './routes/purchaseOrdersStats.js';
 import bomRoutes from './routes/boms.js';
 import productionOrderRoutes from './routes/productionOrders.js';
+import backupRoutes from './routes/backup.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,6 +72,7 @@ app.use('/api/purchase-orders', purchaseOrderRequisitionRoutes);
 app.use('/api/purchase-orders', purchaseOrderStatsRoutes);
 app.use('/api/boms', bomRoutes);
 app.use('/api/production-orders', productionOrderRoutes);
+app.use('/api/backup', backupRoutes);
 
 // Serve static files - Always serve in this environment
 app.use(express.static(path.join(__dirname, '../dist')));
@@ -95,6 +98,8 @@ initializeDatabase()
   })
   .then(() => {
     console.log('Migrations completed successfully');
+    // Start backup scheduler
+    startBackupScheduler();
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
