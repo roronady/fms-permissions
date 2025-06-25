@@ -178,7 +178,13 @@ export const userService = {
   },
 
   async updateUserSpecificPermissions(userId: number, permissions: any[]) {
-    const response = await fetch(`${API_BASE}/users/${userId}/specific-permissions`, {
+    // Validate and convert userId to ensure it's a valid number
+    const validUserId = Number(userId);
+    if (!Number.isInteger(validUserId) || validUserId <= 0) {
+      throw new Error('Invalid user ID: must be a positive integer');
+    }
+
+    const response = await fetch(`${API_BASE}/users/${validUserId}/specific-permissions`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify({ permissions }),
