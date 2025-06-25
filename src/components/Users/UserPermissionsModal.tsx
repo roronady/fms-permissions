@@ -62,7 +62,14 @@ const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({
       setRolePermissions(rolePerms);
       
       // Load user-specific permissions
-      const userPerms = await userService.getUserSpecificPermissions(userId);
+      let userPerms = [];
+      try {
+        userPerms = await userService.getUserSpecificPermissions(userId);
+      } catch (error) {
+        console.warn('Could not load user-specific permissions, likely a new role:', error);
+        // For new roles without users, we'll just use an empty array
+        userPerms = [];
+      }
       
       // Create a merged list of all permissions with their grant type
       const mergedPermissions = permissions.map(permission => {
@@ -103,6 +110,7 @@ const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({
       // Validate userId before making the API call
       if (typeof userId !== 'number' || isNaN(userId) || userId <= 0) {
         setError('Invalid user ID. Please close and reopen this dialog.');
+        setSaving(false);
         return;
       }
       
@@ -113,6 +121,9 @@ const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({
           permission_id: p.id,
           grant_type: p.grant_type
         }));
+      
+      console.log('Saving permissions for user ID:', userId);
+      console.log('Permissions data:', specificPermissions);
       
       await userService.updateUserSpecificPermissions(userId, specificPermissions);
       
