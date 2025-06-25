@@ -40,7 +40,7 @@ export const columnPreferenceService = {
       headers: getAuthHeaders(),
       body: JSON.stringify({ 
         preference_type: pageId,
-        columns 
+        preference_data: JSON.stringify(columns) 
       }),
     });
 
@@ -54,7 +54,15 @@ export const columnPreferenceService = {
       });
 
       const result = await handleResponse(response);
-      return Array.isArray(result?.columns) ? result.columns : null;
+      if (result && result.columns) {
+        try {
+          return JSON.parse(result.columns);
+        } catch (e) {
+          console.error('Failed to parse column preferences:', e);
+          return null;
+        }
+      }
+      return null;
     } catch (error) {
       console.error(`Error fetching column preferences for ${pageId}:`, error);
       return null;

@@ -721,29 +721,31 @@ router.get('/stock-movements/export/csv', async (req, res) => {
 // Save column preferences
 router.post('/column-preferences', async (req, res) => {
   try {
-    const { columns, preference_type } = req.body;
+    const { columns, preference_type, preference_data } = req.body;
     
-    if (!columns || !Array.isArray(columns)) {
-      return res.status(400).json({ error: 'Invalid columns data' });
+    if ((!columns && !preference_data) || !preference_type) {
+      return res.status(400).json({ error: 'Invalid data provided' });
     }
     
     // Check if user already has preferences for this type
     const existingPrefs = await runQuery(
       'SELECT * FROM user_preferences WHERE user_id = ? AND preference_type = ?',
-      [req.user.id, preference_type || 'inventory_columns']
+      [req.user.id, preference_type]
     );
+    
+    const dataToSave = preference_data || JSON.stringify(columns);
     
     if (existingPrefs.length > 0) {
       // Update existing preferences
       await runStatement(
         'UPDATE user_preferences SET preference_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [JSON.stringify(columns), existingPrefs[0].id]
+        [dataToSave, existingPrefs[0].id]
       );
     } else {
       // Create new preferences
       await runStatement(
         'INSERT INTO user_preferences (user_id, preference_type, preference_data) VALUES (?, ?, ?)',
-        [req.user.id, preference_type || 'inventory_columns', JSON.stringify(columns)]
+        [req.user.id, preference_type, dataToSave]
       );
     }
     
@@ -759,14 +761,17 @@ router.get('/column-preferences', async (req, res) => {
   try {
     const { preference_type } = req.query;
     
+    if (!preference_type) {
+      return res.status(400).json({ error: 'Preference type is required' });
+    }
+    
     const preferences = await runQuery(
       'SELECT preference_data FROM user_preferences WHERE user_id = ? AND preference_type = ?',
-      [req.user.id, preference_type || 'inventory_columns']
+      [req.user.id, preference_type]
     );
     
     if (preferences.length > 0) {
-      const columns = JSON.parse(preferences[0].preference_data);
-      res.json({ columns });
+      res.json({ columns: preferences[0].preference_data });
     } else {
       res.json({ columns: null });
     }

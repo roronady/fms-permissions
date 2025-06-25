@@ -17,7 +17,7 @@ export const useColumnPreferences = (
         setLoading(true);
         const savedColumns = await columnPreferenceService.getColumnPreferences(pageId);
         
-        if (savedColumns) {
+        if (savedColumns && savedColumns.length > 0) {
           // Merge saved preferences with default columns to handle any new columns added
           const mergedColumns = defaultColumns.map(defaultCol => {
             const savedCol = savedColumns.find((col: Column) => col.id === defaultCol.id);
@@ -34,7 +34,7 @@ export const useColumnPreferences = (
     };
 
     loadPreferences();
-  }, [pageId]);
+  }, [pageId, defaultColumns]);
 
   const handleSaveColumnPreferences = async (updatedColumns: Column[]) => {
     try {
