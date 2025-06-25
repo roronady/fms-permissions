@@ -63,7 +63,7 @@ router.post('/', checkPermission('user.create'), async (req, res) => {
 router.put('/:id', checkPermission('user.edit'), async (req, res) => {
   try {
     const { username, email, role, password } = req.body;
-    const userId = req.params.id;
+    const userId = parseInt(req.params.id);
 
     let sql = 'UPDATE users SET username = ?, email = ?, role = ?, updated_at = CURRENT_TIMESTAMP';
     let params = [username, email, role];
@@ -89,7 +89,7 @@ router.put('/:id', checkPermission('user.edit'), async (req, res) => {
 // Delete user (admin only)
 router.delete('/:id', checkPermission('user.delete'), async (req, res) => {
   try {
-    const userId = req.params.id;
+    const userId = parseInt(req.params.id);
 
     // Prevent deleting the last admin
     const adminCount = await runQuery('SELECT COUNT(*) as count FROM users WHERE role = "admin"');
@@ -214,7 +214,7 @@ router.put('/role-permissions', checkPermission('user.manage_permissions'), asyn
 // Get user permissions
 router.get('/:id/permissions', checkPermission('user.manage_permissions'), async (req, res) => {
   try {
-    const userId = req.params.id;
+    const userId = parseInt(req.params.id);
     
     // Get user
     const users = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
@@ -346,7 +346,7 @@ router.delete('/roles/:role', checkPermission('user.manage_permissions'), async 
 // Get user-specific permissions
 router.get('/:id/specific-permissions', checkPermission('user.manage_permissions'), async (req, res) => {
   try {
-    const userId = req.params.id;
+    const userId = parseInt(req.params.id);
     
     // Get user
     const users = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
@@ -373,7 +373,7 @@ router.get('/:id/specific-permissions', checkPermission('user.manage_permissions
 // Update user-specific permissions
 router.put('/:id/specific-permissions', checkPermission('user.manage_permissions'), async (req, res) => {
   try {
-    const userId = req.params.id;
+    const userId = parseInt(req.params.id);
     const { permissions } = req.body;
     
     if (!Array.isArray(permissions)) {
