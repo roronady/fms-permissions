@@ -89,7 +89,7 @@ const UserManagement: React.FC = () => {
   };
 
   const handleManageUserPermissions = (userId: number, username: string, role: string) => {
-    setSelectedUser({ id: userId, username, role });
+    setSelectedUser({ id: parseInt(userId.toString()), username, role });
     setShowUserPermissionsModal(true);
   };
 
