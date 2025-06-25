@@ -29,16 +29,10 @@ export const addItemTypeToInventory = async () => {
   const checkColumnSql = `SELECT COUNT(*) as count FROM pragma_table_info('inventory_items') WHERE name = 'item_type'`;
   
   try {
-    const result = await new Promise((resolve, reject) => {
-      const db = require('../connection.js').db;
-      db.get(checkColumnSql, (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
+    const result = await runStatement(checkColumnSql);
 
     // Only run the migration if the column doesn't exist
-    if (result.count === 0) {
+    if (result[0].count === 0) {
       const statements = sql.split(';').filter(stmt => stmt.trim() && !stmt.trim().startsWith('/*'));
       for (const statement of statements) {
         if (statement.trim()) {
