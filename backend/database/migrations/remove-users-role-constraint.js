@@ -32,8 +32,9 @@ export const removeUsersRoleConstraint = async () => {
     // Get the current table schema
     const tableInfo = await runQuery(`PRAGMA table_info(users)`);
     
-    // Start a transaction
+    // Start a transaction and disable foreign key checks
     await runStatement('BEGIN TRANSACTION');
+    await runStatement('PRAGMA foreign_keys = OFF;');
 
     try {
       // Create a new table without the CHECK constraint
@@ -69,12 +70,14 @@ export const removeUsersRoleConstraint = async () => {
       // Recreate indexes
       await runStatement('CREATE INDEX IF NOT EXISTS idx_users_password_reset_token ON users(password_reset_token)');
 
-      // Commit the transaction
+      // Re-enable foreign key checks and commit the transaction
+      await runStatement('PRAGMA foreign_keys = ON;');
       await runStatement('COMMIT');
       
       console.log('✅ Successfully removed role constraint from users table');
     } catch (error) {
-      // Rollback the transaction on error
+      // Rollback the transaction on error and re-enable foreign keys
+      await runStatement('PRAGMA foreign_keys = ON;');
       await runStatement('ROLLBACK');
       console.error('Error removing role constraint:', error);
       throw error;
