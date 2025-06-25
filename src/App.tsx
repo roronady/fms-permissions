@@ -9,6 +9,7 @@ import PurchaseOrders from './components/PurchaseOrders/PurchaseOrders';
 import Production from './components/Production/Production';
 import UserManagement from './components/Users/UserManagement';
 import MasterDataManagement from './components/MasterData/MasterDataManagement';
+import ReportDashboard from './components/Reports/ReportDashboard';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
 
@@ -40,6 +41,7 @@ function AppContent() {
             <Route path="/production" element={<Production />} />
             <Route path="/master-data" element={<MasterDataManagement />} />
             <Route path="/users" element={<UserManagement />} />
+            <Route path="/reports" element={<ReportDashboard />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Layout>
