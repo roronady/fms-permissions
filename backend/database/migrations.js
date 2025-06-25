@@ -1,6 +1,6 @@
 import { runStatement, runQuery } from './connection.js';
 import bcrypt from 'bcryptjs';
-import { addSampleInventoryData, addSampleBOMData, addSampleRequisitionsData, addSamplePurchaseOrdersData, addSampleProductionOrdersData, addAllSampleData } from './sample-data.js';
+import { addAllSampleData } from './sample-data.js';
 import { createInitialSchema } from './migrations/initial-schema.js';
 import { createInventoryTables } from './migrations/inventory-tables.js';
 import { createAuditTables } from './migrations/audit-tables.js';
