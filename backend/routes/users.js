@@ -8,140 +8,7 @@ const router = express.Router();
 // Apply authentication to all routes
 router.use(authenticateToken);
 
-// Get all users (admin only)
-router.get('/', checkPermission('user.view'), async (req, res) => {
-  try {
-    const users = await runQuery(`
-      SELECT id, username, email, role, created_at, updated_at 
-      FROM users 
-      ORDER BY created_at DESC
-    `);
-    res.json(users);
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
-});
-
-// Create user (admin only)
-router.post('/', checkPermission('user.create'), async (req, res) => {
-  try {
-    const { username, email, password, role = 'user' } = req.body;
-
-    if (!username || !email || !password) {
-      return res.status(400).json({ error: 'All fields required' });
-    }
-
-    // Check if user exists
-    const existingUsers = await runQuery(
-      'SELECT * FROM users WHERE username = ? OR email = ?',
-      [username, email]
-    );
-
-    if (existingUsers.length > 0) {
-      return res.status(400).json({ error: 'User already exists' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const result = await runStatement(
-      'INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)',
-      [username, email, hashedPassword, role]
-    );
-
-    res.status(201).json({
-      message: 'User created successfully',
-      userId: result.id
-    });
-  } catch (error) {
-    console.error('Error creating user:', error);
-    res.status(500).json({ error: 'Failed to create user' });
-  }
-});
-
-// Update user (admin only)
-router.put('/:id', checkPermission('user.edit'), async (req, res) => {
-  try {
-    const { username, email, role, password } = req.body;
-    const userId = req.params.id;
-
-    // Validate userId is a number
-    const userIdNum = parseInt(userId, 10);
-    if (isNaN(userIdNum)) {
-      return res.status(400).json({ error: 'Invalid user ID' });
-    }
-
-    // Build the update query dynamically based on provided fields
-    const updateFields = [];
-    const updateValues = [];
-
-    if (username !== undefined) {
-      updateFields.push('username = ?');
-      updateValues.push(username);
-    }
-
-    if (email !== undefined) {
-      updateFields.push('email = ?');
-      updateValues.push(email);
-    }
-
-    if (role !== undefined) {
-      updateFields.push('role = ?');
-      updateValues.push(role);
-    }
-
-    if (password !== undefined && password !== '') {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      updateFields.push('password_hash = ?');
-      updateValues.push(hashedPassword);
-    }
-
-    updateFields.push('updated_at = CURRENT_TIMESTAMP');
-
-    if (updateFields.length === 1) { // Only timestamp field
-      return res.status(400).json({ error: 'No fields to update' });
-    }
-
-    // Add the user ID to the end of the values array
-    updateValues.push(userIdNum);
-
-    const sql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
-
-    await runStatement(sql, updateValues);
-
-    res.json({ message: 'User updated successfully' });
-  } catch (error) {
-    console.error('Error updating user:', error);
-    res.status(500).json({ error: 'Failed to update user' });
-  }
-});
-
-// Delete user (admin only)
-router.delete('/:id', checkPermission('user.delete'), async (req, res) => {
-  try {
-    const userId = parseInt(req.params.id, 10);
-
-    if (isNaN(userId)) {
-      return res.status(400).json({ error: 'Invalid user ID' });
-    }
-
-    // Prevent deleting the last admin
-    const adminCount = await runQuery('SELECT COUNT(*) as count FROM users WHERE role = ?', ['admin']);
-    const userToDelete = await runQuery('SELECT role FROM users WHERE id = ?', [userId]);
-
-    if (userToDelete[0]?.role === 'admin' && adminCount[0].count <= 1) {
-      return res.status(400).json({ error: 'Cannot delete the last admin user' });
-    }
-
-    await runStatement('DELETE FROM users WHERE id = ?', [userId]);
-
-    res.json({ message: 'User deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    res.status(500).json({ error: 'Failed to delete user' });
-  }
-});
-
+// Static routes MUST come before parameterized routes
 // Get all permissions
 router.get('/permissions', checkPermission('user.manage_permissions'), async (req, res) => {
   try {
@@ -245,39 +112,6 @@ router.put('/role-permissions', checkPermission('user.manage_permissions'), asyn
   }
 });
 
-// Get user permissions
-router.get('/:id/permissions', checkPermission('user.manage_permissions'), async (req, res) => {
-  try {
-    const userId = parseInt(req.params.id, 10);
-    
-    if (isNaN(userId)) {
-      return res.status(400).json({ error: 'Invalid user ID' });
-    }
-    
-    // Get user
-    const users = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
-    if (users.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const user = users[0];
-    
-    // Get permissions for user's role
-    const permissions = await runQuery(`
-      SELECT p.name
-      FROM permissions p
-      JOIN role_permissions rp ON p.id = rp.permission_id
-      WHERE rp.role = ?
-      ORDER BY p.name
-    `, [user.role]);
-    
-    res.json(permissions.map(p => p.name));
-  } catch (error) {
-    console.error('Error fetching user permissions:', error);
-    res.status(500).json({ error: 'Failed to fetch user permissions' });
-  }
-});
-
 // Get all available roles
 router.get('/roles', checkPermission('user.manage_permissions'), async (req, res) => {
   try {
@@ -356,7 +190,7 @@ router.post('/roles', checkPermission('user.manage_permissions'), async (req, re
   }
 });
 
-// Delete a role
+// Delete a role - this needs to come before /:id routes
 router.delete('/roles/:role', checkPermission('user.manage_permissions'), async (req, res) => {
   try {
     const { role } = req.params;
@@ -378,6 +212,91 @@ router.delete('/roles/:role', checkPermission('user.manage_permissions'), async 
   } catch (error) {
     console.error('Error deleting role:', error);
     res.status(500).json({ error: 'Failed to delete role' });
+  }
+});
+
+// Parameterized routes come AFTER static routes
+// Get all users (admin only)
+router.get('/', checkPermission('user.view'), async (req, res) => {
+  try {
+    const users = await runQuery(`
+      SELECT id, username, email, role, created_at, updated_at 
+      FROM users 
+      ORDER BY created_at DESC
+    `);
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Create user (admin only)
+router.post('/', checkPermission('user.create'), async (req, res) => {
+  try {
+    const { username, email, password, role = 'user' } = req.body;
+
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'All fields required' });
+    }
+
+    // Check if user exists
+    const existingUsers = await runQuery(
+      'SELECT * FROM users WHERE username = ? OR email = ?',
+      [username, email]
+    );
+
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const result = await runStatement(
+      'INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)',
+      [username, email, hashedPassword, role]
+    );
+
+    res.status(201).json({
+      message: 'User created successfully',
+      userId: result.id
+    });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+// Get user permissions
+router.get('/:id/permissions', checkPermission('user.manage_permissions'), async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    
+    // Get user
+    const users = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = users[0];
+    
+    // Get permissions for user's role
+    const permissions = await runQuery(`
+      SELECT p.name
+      FROM permissions p
+      JOIN role_permissions rp ON p.id = rp.permission_id
+      WHERE rp.role = ?
+      ORDER BY p.name
+    `, [user.role]);
+    
+    res.json(permissions.map(p => p.name));
+  } catch (error) {
+    console.error('Error fetching user permissions:', error);
+    res.status(500).json({ error: 'Failed to fetch user permissions' });
   }
 });
 
@@ -461,6 +380,89 @@ router.put('/:id/specific-permissions', checkPermission('user.manage_permissions
   } catch (error) {
     console.error('Error updating user-specific permissions:', error);
     res.status(500).json({ error: 'Failed to update user-specific permissions' });
+  }
+});
+
+// Update user (admin only)
+router.put('/:id', checkPermission('user.edit'), async (req, res) => {
+  try {
+    const { username, email, role, password } = req.body;
+    const userId = req.params.id;
+
+    // Validate userId is a number
+    const userIdNum = parseInt(userId, 10);
+    if (isNaN(userIdNum)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    // Build the update query dynamically based on provided fields
+    const updateFields = [];
+    const updateValues = [];
+
+    if (username !== undefined) {
+      updateFields.push('username = ?');
+      updateValues.push(username);
+    }
+
+    if (email !== undefined) {
+      updateFields.push('email = ?');
+      updateValues.push(email);
+    }
+
+    if (role !== undefined) {
+      updateFields.push('role = ?');
+      updateValues.push(role);
+    }
+
+    if (password !== undefined && password !== '') {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateFields.push('password_hash = ?');
+      updateValues.push(hashedPassword);
+    }
+
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+
+    if (updateFields.length === 1) { // Only timestamp field
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    // Add the user ID to the end of the values array
+    updateValues.push(userIdNum);
+
+    const sql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+
+    await runStatement(sql, updateValues);
+
+    res.json({ message: 'User updated successfully' });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+// Delete user (admin only)
+router.delete('/:id', checkPermission('user.delete'), async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    // Prevent deleting the last admin
+    const adminCount = await runQuery('SELECT COUNT(*) as count FROM users WHERE role = ?', ['admin']);
+    const userToDelete = await runQuery('SELECT role FROM users WHERE id = ?', [userId]);
+
+    if (userToDelete[0]?.role === 'admin' && adminCount[0].count <= 1) {
+      return res.status(400).json({ error: 'Cannot delete the last admin user' });
+    }
+
+    await runStatement('DELETE FROM users WHERE id = ?', [userId]);
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
   }
 });
 
