@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Package, Save, Image } from 'lucide-react';
+import { X, Package, Save, Image, Upload } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 
 interface AddItemModalProps {
@@ -44,6 +44,9 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onItemAdde
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -67,8 +70,25 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onItemAdde
     setError('');
 
     try {
+      // If there's an image file, upload it first
+      let finalImageUrl = formData.image_url;
+      if (imageFile) {
+        try {
+          setUploadingImage(true);
+          const imageData = await inventoryService.uploadImage(imageFile);
+          finalImageUrl = imageData.imageUrl;
+          setUploadingImage(false);
+        } catch (error) {
+          setError('Failed to upload image. Please try again.');
+          setLoading(false);
+          setUploadingImage(false);
+          return;
+        }
+      }
+
       await inventoryService.createItem({
         ...formData,
+        image_url: finalImageUrl,
         category_id: formData.category_id ? parseInt(formData.category_id) : null,
         subcategory_id: formData.subcategory_id ? parseInt(formData.subcategory_id) : null,
         unit_id: formData.unit_id ? parseInt(formData.unit_id) : null,
@@ -103,6 +123,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onItemAdde
       item_type: 'raw_material',
       image_url: ''
     });
+    setImageFile(null);
+    setImagePreviewUrl('');
     setError('');
   };
 
@@ -112,6 +134,28 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onItemAdde
       ...prev,
       [name]: name.includes('quantity') || name === 'unit_price' ? parseFloat(value) || 0 : value
     }));
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image file is too large. Maximum size is 5MB.');
+      return;
+    }
+
+    // Check file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setError('Only image files (JPEG, PNG, GIF, WEBP) are allowed.');
+      return;
+    }
+
+    setImageFile(file);
+    setImagePreviewUrl(URL.createObjectURL(file));
+    setFormData(prev => ({ ...prev, image_url: '' })); // Clear URL input when file is selected
   };
 
   const filteredSubcategories = dropdownData.subcategories.filter(
@@ -139,7 +183,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onItemAdde
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto min-h-0">
-          <div className="p-4 sm:p-6 space-y-6">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
                 {error}
@@ -214,37 +258,44 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onItemAdde
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Image URL
+                    Item Image
                   </label>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      name="image_url"
-                      value={formData.image_url}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Enter a URL to an image of this item. Use external image hosting services.
-                  </p>
-                  
-                  {formData.image_url && (
-                    <div className="mt-2 border border-gray-200 rounded-lg p-2 bg-gray-50">
-                      <p className="text-xs text-gray-500 mb-1">Image Preview:</p>
-                      <div className="relative h-32 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
-                        <img 
-                          src={formData.image_url} 
-                          alt="Item preview" 
-                          className="max-h-full max-w-full object-contain"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Invalid+Image+URL';
-                          }}
-                        />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <div className="flex items-center">
+                        <label className="flex items-center justify-center w-full px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                          <Upload className="h-5 w-5 mr-2 text-gray-500" />
+                          <span className="text-sm text-gray-700">Upload Image</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageChange}
+                            className="hidden"
+                          />
+                        </label>
                       </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Max size: 5MB. Formats: JPG, PNG, GIF, WEBP
+                      </p>
                     </div>
-                  )}
+                    
+                    <div>
+                      {(imagePreviewUrl || formData.image_url) && (
+                        <div className="border border-gray-200 rounded-lg p-2 bg-gray-50">
+                          <div className="relative h-32 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
+                            <img 
+                              src={imagePreviewUrl || formData.image_url} 
+                              alt="Item preview" 
+                              className="max-h-full max-w-full object-contain"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Invalid+Image';
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -415,7 +466,7 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onItemAdde
 
             {/* Add some bottom padding for mobile */}
             <div className="h-4 sm:hidden"></div>
-          </div>
+          </form>
         </div>
 
         {/* Fixed Footer */}
@@ -430,15 +481,15 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onItemAdde
           <button
             type="submit"
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={loading || uploadingImage}
             className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? (
+            {loading || uploadingImage ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
             ) : (
               <Save className="h-4 w-4 mr-2" />
             )}
-            {loading ? 'Adding...' : 'Add Item'}
+            {loading ? 'Adding...' : uploadingImage ? 'Uploading Image...' : 'Add Item'}
           </button>
         </div>
       </div>

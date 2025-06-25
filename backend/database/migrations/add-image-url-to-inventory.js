@@ -7,11 +7,11 @@ export const addImageUrlToInventory = async () => {
 
       1. Changes
         - Add \`image_url\` column to \`inventory_items\` table
-        - This column stores a URL to an image of the inventory item
+        - This column stores a path to an image of the inventory item
         - Default value is NULL
       
       2. Purpose
-        - Allow storing references to item images
+        - Allow storing references to locally saved item images
         - Support image preview in the inventory interface
         - Keep images separate from database for better backup management
     */

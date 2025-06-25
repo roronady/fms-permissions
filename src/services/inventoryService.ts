@@ -100,6 +100,22 @@ export const inventoryService = {
     return handleResponse(response);
   },
 
+  async uploadImage(file: File) {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE}/inventory/upload-image`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    return handleResponse(response);
+  },
+
   async getDropdownData() {
     try {
       const response = await fetch(`${API_BASE}/inventory/dropdown-data`, {
@@ -163,10 +179,10 @@ export const inventoryService = {
   },
 
   async importCSV(file: File) {
-    const token = localStorage.getItem('token');
     const formData = new FormData();
     formData.append('file', file);
 
+    const token = localStorage.getItem('token');
     const response = await fetch(`${API_BASE}/inventory/import/csv`, {
       method: 'POST',
       headers: {

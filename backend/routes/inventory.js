@@ -7,6 +7,7 @@ import {
   handleInventoryExport,
   handleInventoryImport
 } from '../utils/inventoryHelpers.js';
+import { upload, getImageUrl, deleteImage, getFilenameFromUrl } from '../utils/imageStorage.js';
 
 const router = express.Router();
 
@@ -206,13 +207,34 @@ router.get('/items/:id', async (req, res) => {
   }
 });
 
+// Upload image for inventory item
+router.post('/upload-image', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+    
+    // Return the image URL
+    const imageUrl = getImageUrl(req.file.filename);
+    
+    res.json({
+      success: true,
+      imageUrl,
+      filename: req.file.filename
+    });
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    res.status(500).json({ error: 'Failed to upload image' });
+  }
+});
+
 // Create inventory item
 router.post('/items', async (req, res) => {
   try {
     const {
       name, sku, description, category_id, subcategory_id,
       unit_id, location_id, supplier_id, quantity,
-      min_quantity, max_quantity, unit_price, item_type
+      min_quantity, max_quantity, unit_price, item_type, image_url
     } = req.body;
 
     if (!name || !sku) {
@@ -226,13 +248,13 @@ router.post('/items', async (req, res) => {
       INSERT INTO inventory_items (
         name, sku, description, category_id, subcategory_id,
         unit_id, location_id, supplier_id, quantity,
-        min_quantity, max_quantity, unit_price, total_value, item_type
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        min_quantity, max_quantity, unit_price, total_value, item_type, image_url
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       name, sku, description, category_id, subcategory_id,
       unit_id, location_id, supplier_id, quantity || 0,
       min_quantity || 0, max_quantity || 1000, unit_price || 0, totalValue,
-      item_type || 'raw_material'
+      item_type || 'raw_material', image_url || null
     ]);
 
     // Add price history entry
@@ -304,7 +326,7 @@ router.put('/items/:id', async (req, res) => {
     const {
       name, sku, description, category_id, subcategory_id,
       unit_id, location_id, supplier_id, quantity,
-      min_quantity, max_quantity, unit_price, item_type
+      min_quantity, max_quantity, unit_price, item_type, image_url
     } = req.body;
 
     // Calculate new total value
@@ -315,18 +337,30 @@ router.put('/items/:id', async (req, res) => {
       currentItem.average_price
     );
 
+    // Check if image URL has changed
+    const oldImageUrl = currentItem.image_url;
+    const newImageUrl = image_url;
+    
+    // If image URL has changed and old one was a local file, delete it
+    if (oldImageUrl !== newImageUrl) {
+      const oldFilename = getFilenameFromUrl(oldImageUrl);
+      if (oldFilename) {
+        deleteImage(oldFilename);
+      }
+    }
+
     await runStatement(`
       UPDATE inventory_items SET
         name = ?, sku = ?, description = ?, category_id = ?, subcategory_id = ?,
         unit_id = ?, location_id = ?, supplier_id = ?, quantity = ?,
-        min_quantity = ?, max_quantity = ?, unit_price = ?, total_value = ?, item_type = ?,
+        min_quantity = ?, max_quantity = ?, unit_price = ?, total_value = ?, item_type = ?, image_url = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `, [
       name, sku, description, category_id, subcategory_id,
       unit_id, location_id, supplier_id, quantity,
       min_quantity, max_quantity, unit_price, totalValue, 
-      item_type || 'raw_material', itemId
+      item_type || 'raw_material', image_url, itemId
     ]);
 
     // Add price history entry if price changed
@@ -388,6 +422,16 @@ router.delete('/items/:id', async (req, res) => {
     const currentItems = await runQuery('SELECT * FROM inventory_items WHERE id = ?', [itemId]);
     if (currentItems.length === 0) {
       return res.status(404).json({ error: 'Item not found' });
+    }
+
+    const currentItem = currentItems[0];
+    
+    // Delete associated image if it exists
+    if (currentItem.image_url) {
+      const filename = getFilenameFromUrl(currentItem.image_url);
+      if (filename) {
+        deleteImage(filename);
+      }
     }
 
     await runStatement('DELETE FROM inventory_items WHERE id = ?', [itemId]);
