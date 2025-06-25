@@ -100,6 +100,12 @@ const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({
       setError('');
       setSuccess('');
       
+      // Validate userId before making the API call
+      if (typeof userId !== 'number' || isNaN(userId) || userId <= 0) {
+        setError('Invalid user ID. Please close and reopen this dialog.');
+        return;
+      }
+      
       // Filter out permissions that are set to 'inherit'
       const specificPermissions = userPermissions
         .filter(p => p.grant_type !== 'inherit')
