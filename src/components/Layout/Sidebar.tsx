@@ -54,7 +54,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center">
             <img src="/logo.webp" alt="Logo" className="h-8 w-auto" />
-            <span className="ml-2 text-xl font-semibold text-gray-900">FMS</span>
+            <span className="ml-2 text-xl font-semibold text-gray-900 fms-title">FMS</span>
           </div>
           <button
             onClick={onClose}

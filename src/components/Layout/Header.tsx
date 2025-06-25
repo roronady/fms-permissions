@@ -22,7 +22,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             <Menu className="h-6 w-6" />
           </button>
           
-          <div className="ml-4 lg:ml-0">
+          <div className="ml-4 lg:ml-0 flex items-center">
             <h1 className="text-xl font-semibold text-gray-900">
               Factory Management System
             </h1>
