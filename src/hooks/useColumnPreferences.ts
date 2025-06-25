@@ -28,13 +28,63 @@ export const useColumnPreferences = (
           
           console.log('Merged columns:', mergedColumns);
           setColumns(mergedColumns);
+          
+          // Also save to localStorage as a backup
+          localStorage.setItem(`column_prefs_${pageId}`, JSON.stringify(mergedColumns));
         } else {
+          // Check if we have preferences in localStorage
+          const localPrefs = localStorage.getItem(`column_prefs_${pageId}`);
+          if (localPrefs) {
+            try {
+              const parsedLocalPrefs = JSON.parse(localPrefs);
+              if (Array.isArray(parsedLocalPrefs) && parsedLocalPrefs.length > 0) {
+                console.log('Using localStorage preferences:', parsedLocalPrefs);
+                
+                // Merge local preferences with default columns
+                const mergedColumns = defaultColumns.map(defaultCol => {
+                  const savedCol = parsedLocalPrefs.find(col => col.id === defaultCol.id);
+                  return savedCol ? { ...defaultCol, ...savedCol } : defaultCol;
+                });
+                
+                setColumns(mergedColumns);
+                return;
+              }
+            } catch (e) {
+              console.error('Error parsing localStorage preferences:', e);
+            }
+          }
+          
           console.log('No saved preferences found, using defaults');
           setColumns(defaultColumns);
         }
       } catch (error) {
         console.error('Error loading column preferences:', error);
-        setColumns(defaultColumns);
+        
+        // Try to load from localStorage as fallback
+        const localPrefs = localStorage.getItem(`column_prefs_${pageId}`);
+        if (localPrefs) {
+          try {
+            const parsedLocalPrefs = JSON.parse(localPrefs);
+            if (Array.isArray(parsedLocalPrefs) && parsedLocalPrefs.length > 0) {
+              console.log('Using localStorage preferences after error:', parsedLocalPrefs);
+              
+              // Merge local preferences with default columns
+              const mergedColumns = defaultColumns.map(defaultCol => {
+                const savedCol = parsedLocalPrefs.find(col => col.id === defaultCol.id);
+                return savedCol ? { ...defaultCol, ...savedCol } : defaultCol;
+              });
+              
+              setColumns(mergedColumns);
+            } else {
+              setColumns(defaultColumns);
+            }
+          } catch (e) {
+            console.error('Error parsing localStorage preferences:', e);
+            setColumns(defaultColumns);
+          }
+        } else {
+          setColumns(defaultColumns);
+        }
       } finally {
         setLoading(false);
       }
@@ -46,10 +96,16 @@ export const useColumnPreferences = (
   const handleSaveColumnPreferences = async (updatedColumns: Column[]) => {
     try {
       console.log('Saving column preferences:', updatedColumns);
+      
+      // Save to localStorage immediately as a backup
+      localStorage.setItem(`column_prefs_${pageId}`, JSON.stringify(updatedColumns));
+      
+      // Then save to server
       await columnPreferenceService.saveColumnPreferences(pageId, updatedColumns);
       setColumns(updatedColumns);
     } catch (error) {
       console.error('Error saving column preferences:', error);
+      // Even if server save fails, we still have localStorage backup
     }
   };
 
