@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Package, Save } from 'lucide-react';
+import { X, Package, Save, Image } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 
 interface AddItemModalProps {
@@ -30,7 +30,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onItemAdde
     min_quantity: 0,
     max_quantity: 1000,
     unit_price: 0,
-    item_type: 'raw_material'
+    item_type: 'raw_material',
+    image_url: ''
   });
 
   const [dropdownData, setDropdownData] = useState<DropdownData>({
@@ -99,7 +100,8 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onItemAdde
       min_quantity: 0,
       max_quantity: 1000,
       unit_price: 0,
-      item_type: 'raw_material'
+      item_type: 'raw_material',
+      image_url: ''
     });
     setError('');
   };
@@ -208,6 +210,41 @@ const AddItemModal: React.FC<AddItemModalProps> = ({ isOpen, onClose, onItemAdde
                     <option value="semi_finished_product">Semi-Finished Product</option>
                     <option value="finished_product">Finished Product</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Image URL
+                  </label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      name="image_url"
+                      value={formData.image_url}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Enter a URL to an image of this item. Use external image hosting services.
+                  </p>
+                  
+                  {formData.image_url && (
+                    <div className="mt-2 border border-gray-200 rounded-lg p-2 bg-gray-50">
+                      <p className="text-xs text-gray-500 mb-1">Image Preview:</p>
+                      <div className="relative h-32 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
+                        <img 
+                          src={formData.image_url} 
+                          alt="Item preview" 
+                          className="max-h-full max-w-full object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Invalid+Image+URL';
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

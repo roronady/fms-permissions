@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { closeDatabase, getDatabase } from '../database/connection.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,14 +19,36 @@ export const createBackup = () => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupPath = path.join(backupDir, `wms_backup_${timestamp}.db`);
     
-    fs.copyFileSync(dbPath, backupPath);
+    // Close the database connection to ensure all data is written
+    const db = getDatabase();
     
-    console.log(`Backup created: ${backupPath}`);
+    // Create a backup by copying the database file
+    // We need to use a stream to handle large files and avoid memory issues
+    const readStream = fs.createReadStream(dbPath);
+    const writeStream = fs.createWriteStream(backupPath);
     
-    // Clean old backups (keep last 10)
-    cleanOldBackups();
-    
-    return backupPath;
+    return new Promise((resolve, reject) => {
+      readStream.on('error', (err) => {
+        console.error('Error reading database file:', err);
+        reject(err);
+      });
+      
+      writeStream.on('error', (err) => {
+        console.error('Error writing backup file:', err);
+        reject(err);
+      });
+      
+      writeStream.on('finish', () => {
+        console.log(`Backup created: ${backupPath}`);
+        
+        // Clean old backups (keep last 10)
+        cleanOldBackups();
+        
+        resolve(backupPath);
+      });
+      
+      readStream.pipe(writeStream);
+    });
   } catch (error) {
     console.error('Error creating backup:', error);
     throw error;
@@ -77,11 +100,31 @@ export const restoreBackup = (backupPath) => {
     const currentBackupPath = createBackup();
     console.log(`Current database backed up to: ${currentBackupPath}`);
     
-    // Restore from backup
-    fs.copyFileSync(backupPath, dbPath);
-    
-    console.log(`Database restored from: ${backupPath}`);
-    return true;
+    // Close the database connection before restoring
+    closeDatabase().then(() => {
+      // Restore from backup
+      const readStream = fs.createReadStream(backupPath);
+      const writeStream = fs.createWriteStream(dbPath);
+      
+      return new Promise((resolve, reject) => {
+        readStream.on('error', (err) => {
+          console.error('Error reading backup file:', err);
+          reject(err);
+        });
+        
+        writeStream.on('error', (err) => {
+          console.error('Error writing to database file:', err);
+          reject(err);
+        });
+        
+        writeStream.on('finish', () => {
+          console.log(`Database restored from: ${backupPath}`);
+          resolve(true);
+        });
+        
+        readStream.pipe(writeStream);
+      });
+    });
   } catch (error) {
     console.error('Error restoring backup:', error);
     throw error;

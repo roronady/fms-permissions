@@ -15,6 +15,7 @@ import { createStockMovementsTable } from './migrations/stock-movements-table.js
 import { createProductionOrdersTables } from './migrations/production-orders-tables.js';
 import { createUserPreferencesIndex } from './migrations/user-preferences-index.js';
 import { addItemTypeToInventory } from './migrations/add-item-type-to-inventory.js';
+import { addImageUrlToInventory } from './migrations/add-image-url-to-inventory.js';
 
 const migrations = [
   {
@@ -86,6 +87,11 @@ const migrations = [
     version: 17,
     name: 'add_item_type_to_inventory',
     execute: addItemTypeToInventory
+  },
+  {
+    version: 18,
+    name: 'add_image_url_to_inventory',
+    execute: addImageUrlToInventory
   }
 ];
 

@@ -7,7 +7,8 @@ import {
   Settings,
   History,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Image
 } from 'lucide-react';
 
 interface InventoryTableProps {
@@ -210,6 +211,27 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getItemTypeColor(item.item_type)}`}>
                             {getItemTypeLabel(item.item_type)}
                           </span>
+                        </td>
+                      );
+                    case 'image':
+                      return (
+                        <td key={column.id} className="px-6 py-4 whitespace-nowrap">
+                          {item.image_url ? (
+                            <div className="h-10 w-10 relative rounded overflow-hidden bg-gray-100 border border-gray-200">
+                              <img 
+                                src={item.image_url} 
+                                alt={item.name}
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40?text=No+Image';
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="h-10 w-10 flex items-center justify-center rounded bg-gray-100 border border-gray-200">
+                              <Image className="h-5 w-5 text-gray-400" />
+                            </div>
+                          )}
                         </td>
                       );
                     case 'status':

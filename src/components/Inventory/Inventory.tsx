@@ -6,7 +6,8 @@ import {
   Upload, 
   FileText,
   RefreshCw,
-  Columns
+  Columns,
+  Image
 } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 import { useSocket } from '../../contexts/SocketContext';
@@ -40,27 +41,29 @@ interface InventoryItem {
   total_value: number;
   is_low_stock: boolean;
   item_type: string;
+  image_url?: string;
   updated_at: string;
 }
 
 const DEFAULT_COLUMNS = [
   { id: 'name', label: 'Item Name', visible: true, width: 200, order: 1 },
   { id: 'sku', label: 'SKU', visible: true, width: 120, order: 2 },
-  { id: 'category_name', label: 'Category', visible: true, width: 120, order: 3 },
-  { id: 'subcategory_name', label: 'Subcategory', visible: false, width: 120, order: 4 },
-  { id: 'quantity', label: 'Quantity', visible: true, width: 100, order: 5 },
-  { id: 'unit_name', label: 'Unit', visible: true, width: 80, order: 6 },
-  { id: 'location_name', label: 'Location', visible: true, width: 120, order: 7 },
-  { id: 'supplier_name', label: 'Supplier', visible: false, width: 150, order: 8 },
-  { id: 'unit_price', label: 'Unit Price', visible: true, width: 100, order: 9 },
-  { id: 'last_price', label: 'Last Price', visible: false, width: 100, order: 10 },
-  { id: 'average_price', label: 'Avg Price', visible: false, width: 100, order: 11 },
-  { id: 'total_value', label: 'Total Value', visible: true, width: 120, order: 12 },
-  { id: 'min_quantity', label: 'Min Qty', visible: false, width: 100, order: 13 },
-  { id: 'max_quantity', label: 'Max Qty', visible: false, width: 100, order: 14 },
-  { id: 'item_type', label: 'Item Type', visible: true, width: 130, order: 15 },
-  { id: 'status', label: 'Status', visible: true, width: 100, order: 16 },
-  { id: 'actions', label: 'Actions', visible: true, width: 120, order: 17 }
+  { id: 'image', label: 'Image', visible: true, width: 80, order: 3 },
+  { id: 'category_name', label: 'Category', visible: true, width: 120, order: 4 },
+  { id: 'subcategory_name', label: 'Subcategory', visible: false, width: 120, order: 5 },
+  { id: 'quantity', label: 'Quantity', visible: true, width: 100, order: 6 },
+  { id: 'unit_name', label: 'Unit', visible: true, width: 80, order: 7 },
+  { id: 'location_name', label: 'Location', visible: true, width: 120, order: 8 },
+  { id: 'supplier_name', label: 'Supplier', visible: false, width: 150, order: 9 },
+  { id: 'unit_price', label: 'Unit Price', visible: true, width: 100, order: 10 },
+  { id: 'last_price', label: 'Last Price', visible: false, width: 100, order: 11 },
+  { id: 'average_price', label: 'Avg Price', visible: false, width: 100, order: 12 },
+  { id: 'total_value', label: 'Total Value', visible: true, width: 120, order: 13 },
+  { id: 'min_quantity', label: 'Min Qty', visible: false, width: 100, order: 14 },
+  { id: 'max_quantity', label: 'Max Qty', visible: false, width: 100, order: 15 },
+  { id: 'item_type', label: 'Item Type', visible: true, width: 130, order: 16 },
+  { id: 'status', label: 'Status', visible: true, width: 100, order: 17 },
+  { id: 'actions', label: 'Actions', visible: true, width: 120, order: 18 }
 ];
 
 const Inventory: React.FC = () => {
@@ -187,11 +190,11 @@ const Inventory: React.FC = () => {
     try {
       // Get visible columns for export
       const visibleColumnIds = visibleColumns
-        .filter(col => col.id !== 'actions')
+        .filter(col => col.id !== 'actions' && col.id !== 'image')
         .map(col => col.id);
       
       const columnWidths = visibleColumns
-        .filter(col => col.id !== 'actions')
+        .filter(col => col.id !== 'actions' && col.id !== 'image')
         .map(col => ({ id: col.id, width: col.width }));
       
       const blob = await inventoryService.exportCSV(visibleColumnIds, columnWidths);
@@ -214,11 +217,11 @@ const Inventory: React.FC = () => {
     try {
       // Get visible columns for export
       const visibleColumnIds = visibleColumns
-        .filter(col => col.id !== 'actions')
+        .filter(col => col.id !== 'actions' && col.id !== 'image')
         .map(col => col.id);
       
       const columnWidths = visibleColumns
-        .filter(col => col.id !== 'actions')
+        .filter(col => col.id !== 'actions' && col.id !== 'image')
         .map(col => ({ id: col.id, width: col.width }));
       
       const blob = await inventoryService.exportPDF(visibleColumnIds, 'Inventory Report', columnWidths);
