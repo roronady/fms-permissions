@@ -6,6 +6,7 @@ interface User {
   username: string;
   email: string;
   role: string;
+  permissions: string[];
 }
 
 interface AuthContextType {
@@ -13,6 +14,9 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
+  hasPermission: (permission: string) => boolean;
+  hasAnyPermission: (permissions: string[]) => boolean;
+  hasAllPermissions: (permissions: string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -57,11 +61,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  // Check if user has a specific permission
+  const hasPermission = (permission: string): boolean => {
+    if (!user || !user.permissions) return false;
+    return user.permissions.includes(permission);
+  };
+
+  // Check if user has any of the specified permissions
+  const hasAnyPermission = (permissions: string[]): boolean => {
+    if (!user || !user.permissions) return false;
+    return permissions.some(permission => user.permissions.includes(permission));
+  };
+
+  // Check if user has all of the specified permissions
+  const hasAllPermissions = (permissions: string[]): boolean => {
+    if (!user || !user.permissions) return false;
+    return permissions.every(permission => user.permissions.includes(permission));
+  };
+
   const value = {
     user,
     login,
     logout,
-    loading
+    loading,
+    hasPermission,
+    hasAnyPermission,
+    hasAllPermissions
   };
 
   return (

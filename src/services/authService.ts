@@ -98,5 +98,17 @@ export const authService = {
     });
 
     return handleResponse(response);
+  },
+
+  // New method to get user permissions
+  async getUserPermissions() {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE}/auth/permissions`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    return handleResponse(response);
   }
 };

@@ -10,6 +10,7 @@ import {
   TrendingDown,
   Image
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface InventoryTableProps {
   items: any[];
@@ -37,6 +38,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
   handleAddItemClick
 }) => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const { hasPermission } = useAuth();
 
   const getStatusColor = (item: any) => {
     if (item.quantity === 0) return 'bg-red-100 text-red-800';
@@ -259,34 +261,45 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
                       return (
                         <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
-                            <button 
-                              onClick={() => handleEditItem(item.id)}
-                              className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
-                              title="Edit Item"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => handleStockAdjustment(item)}
-                              className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
-                              title="Adjust Stock"
-                            >
-                              <Settings className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => handleViewStockMovement(item.id)}
-                              className="text-purple-600 hover:text-purple-900 p-1 rounded hover:bg-purple-50 transition-colors"
-                              title="View Stock Movement History"
-                            >
-                              <History className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteItem(item.id, item.name)}
-                              className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                              title="Delete Item"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {hasPermission('inventory.edit') && (
+                              <button 
+                                onClick={() => handleEditItem(item.id)}
+                                className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
+                                title="Edit Item"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                            )}
+                            
+                            {hasPermission('inventory.adjust_stock') && (
+                              <button 
+                                onClick={() => handleStockAdjustment(item)}
+                                className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
+                                title="Adjust Stock"
+                              >
+                                <Settings className="w-4 h-4" />
+                              </button>
+                            )}
+                            
+                            {hasPermission('inventory.view_stock_movements') && (
+                              <button 
+                                onClick={() => handleViewStockMovement(item.id)}
+                                className="text-purple-600 hover:text-purple-900 p-1 rounded hover:bg-purple-50 transition-colors"
+                                title="View Stock Movement History"
+                              >
+                                <History className="w-4 h-4" />
+                              </button>
+                            )}
+                            
+                            {hasPermission('inventory.delete') && (
+                              <button 
+                                onClick={() => handleDeleteItem(item.id, item.name)}
+                                className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
+                                title="Delete Item"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       );
@@ -307,13 +320,15 @@ const InventoryTable: React.FC<InventoryTableProps> = ({
           <p className="mt-1 text-sm text-gray-500">
             Get started by adding your first inventory item.
           </p>
-          <button
-            onClick={handleAddItemClick}
-            className="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Package className="w-4 h-4 mr-2" />
-            Add First Item
-          </button>
+          {hasPermission('inventory.create') && (
+            <button
+              onClick={handleAddItemClick}
+              className="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Package className="w-4 h-4 mr-2" />
+              Add First Item
+            </button>
+          )}
         </div>
       )}
 

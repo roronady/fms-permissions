@@ -73,4 +73,52 @@ export const userService = {
 
     return handleResponse(response);
   },
+
+  // New methods for permission management
+  async getPermissions() {
+    const response = await fetch(`${API_BASE}/users/permissions`, {
+      headers: getAuthHeaders(),
+    });
+
+    const result = await handleResponse(response);
+    return Array.isArray(result) ? result : [];
+  },
+
+  async getRolePermissions() {
+    const response = await fetch(`${API_BASE}/users/role-permissions`, {
+      headers: getAuthHeaders(),
+    });
+
+    const result = await handleResponse(response);
+    return Array.isArray(result) ? result : [];
+  },
+
+  async updateRolePermissions(rolePermissions: any[]) {
+    const response = await fetch(`${API_BASE}/users/role-permissions`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ rolePermissions }),
+    });
+
+    return handleResponse(response);
+  },
+
+  async getUserPermissions(userId: number) {
+    const response = await fetch(`${API_BASE}/users/${userId}/permissions`, {
+      headers: getAuthHeaders(),
+    });
+
+    const result = await handleResponse(response);
+    return Array.isArray(result) ? result : [];
+  },
+
+  async updateUserPermissions(userId: number, permissions: string[]) {
+    const response = await fetch(`${API_BASE}/users/${userId}/permissions`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ permissions }),
+    });
+
+    return handleResponse(response);
+  }
 };

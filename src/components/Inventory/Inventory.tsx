@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 import { useSocket } from '../../contexts/SocketContext';
+import { useAuth } from '../../contexts/AuthContext';
 import AddItemModal from './AddItemModal';
 import EditItemModal from './EditItemModal';
 import StockMovementModal from './StockMovementModal';
@@ -96,6 +97,7 @@ const Inventory: React.FC = () => {
   } = useColumnPreferences('inventory_columns', DEFAULT_COLUMNS);
   
   const { socket } = useSocket();
+  const { hasPermission } = useAuth();
   const location = useLocation();
 
   useEffect(() => {
@@ -278,30 +280,39 @@ const Inventory: React.FC = () => {
             <Columns className="w-4 h-4 mr-2" />
             Columns
           </button>
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </button>
-          <button
-            onClick={handleExportPDF}
-            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <FileText className="w-4 h-4 mr-2" />
-            Export PDF
-          </button>
-          <label className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-            <Upload className="w-4 h-4 mr-2" />
-            Import CSV
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleImportCSV}
-              className="hidden"
-            />
-          </label>
+          
+          {hasPermission('inventory.export') && (
+            <>
+              <button
+                onClick={handleExportCSV}
+                className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </button>
+              <button
+                onClick={handleExportPDF}
+                className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Export PDF
+              </button>
+            </>
+          )}
+          
+          {hasPermission('inventory.import') && (
+            <label className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+              <Upload className="w-4 h-4 mr-2" />
+              Import CSV
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleImportCSV}
+                className="hidden"
+              />
+            </label>
+          )}
+          
           <button
             onClick={loadItems}
             className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -309,13 +320,16 @@ const Inventory: React.FC = () => {
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </button>
-          <button 
-            onClick={handleAddItemClick}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Item
-          </button>
+          
+          {hasPermission('inventory.create') && (
+            <button 
+              onClick={handleAddItemClick}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Item
+            </button>
+          )}
         </div>
       </div>
 
@@ -355,40 +369,48 @@ const Inventory: React.FC = () => {
       </div>
 
       {/* Modals */}
-      <AddItemModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onItemAdded={loadItems}
-      />
+      {hasPermission('inventory.create') && (
+        <AddItemModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onItemAdded={loadItems}
+        />
+      )}
 
-      <EditItemModal
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setEditingItemId(null);
-        }}
-        onItemUpdated={loadItems}
-        itemId={editingItemId}
-      />
+      {hasPermission('inventory.edit') && (
+        <EditItemModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditingItemId(null);
+          }}
+          onItemUpdated={loadItems}
+          itemId={editingItemId}
+        />
+      )}
 
-      <StockMovementModal
-        isOpen={showStockMovementModal}
-        onClose={() => {
-          setShowStockMovementModal(false);
-          setSelectedItemId(null);
-        }}
-        itemId={selectedItemId}
-      />
+      {hasPermission('inventory.view_stock_movements') && (
+        <StockMovementModal
+          isOpen={showStockMovementModal}
+          onClose={() => {
+            setShowStockMovementModal(false);
+            setSelectedItemId(null);
+          }}
+          itemId={selectedItemId}
+        />
+      )}
 
-      <StockAdjustmentModal
-        isOpen={showStockAdjustmentModal}
-        onClose={() => {
-          setShowStockAdjustmentModal(false);
-          setSelectedItem(null);
-        }}
-        onSuccess={loadItems}
-        item={selectedItem}
-      />
+      {hasPermission('inventory.adjust_stock') && (
+        <StockAdjustmentModal
+          isOpen={showStockAdjustmentModal}
+          onClose={() => {
+            setShowStockAdjustmentModal(false);
+            setSelectedItem(null);
+          }}
+          onSuccess={loadItems}
+          item={selectedItem}
+        />
+      )}
 
       <ColumnCustomizerModal
         isOpen={showColumnCustomizer}

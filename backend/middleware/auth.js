@@ -21,6 +21,18 @@ export const authenticateToken = async (req, res, next) => {
     }
 
     req.user = users[0];
+    
+    // Fetch user permissions based on role
+    const permissions = await runQuery(`
+      SELECT p.name 
+      FROM permissions p
+      JOIN role_permissions rp ON p.id = rp.permission_id
+      WHERE rp.role = ?
+    `, [req.user.role]);
+    
+    // Add permissions to user object
+    req.user.permissions = permissions.map(p => p.name);
+    
     next();
   } catch (error) {
     console.error('Authentication error:', error);
@@ -33,6 +45,67 @@ export const requireAdmin = (req, res, next) => {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();
+};
+
+export const checkPermission = (requiredPermission) => {
+  return (req, res, next) => {
+    if (!req.user || !req.user.permissions) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    
+    if (req.user.permissions.includes(requiredPermission)) {
+      return next();
+    }
+    
+    return res.status(403).json({ 
+      error: 'Permission denied', 
+      requiredPermission: requiredPermission 
+    });
+  };
+};
+
+// Allow checking multiple permissions (any one of them is sufficient)
+export const checkAnyPermission = (requiredPermissions) => {
+  return (req, res, next) => {
+    if (!req.user || !req.user.permissions) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    
+    const hasPermission = requiredPermissions.some(permission => 
+      req.user.permissions.includes(permission)
+    );
+    
+    if (hasPermission) {
+      return next();
+    }
+    
+    return res.status(403).json({ 
+      error: 'Permission denied', 
+      requiredPermissions: requiredPermissions 
+    });
+  };
+};
+
+// Require all specified permissions
+export const checkAllPermissions = (requiredPermissions) => {
+  return (req, res, next) => {
+    if (!req.user || !req.user.permissions) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    
+    const hasAllPermissions = requiredPermissions.every(permission => 
+      req.user.permissions.includes(permission)
+    );
+    
+    if (hasAllPermissions) {
+      return next();
+    }
+    
+    return res.status(403).json({ 
+      error: 'Permission denied', 
+      requiredPermissions: requiredPermissions 
+    });
+  };
 };
 
 export const authenticateSocket = async (socket, next) => {
@@ -51,6 +124,18 @@ export const authenticateSocket = async (socket, next) => {
     }
 
     socket.user = users[0];
+    
+    // Fetch user permissions based on role
+    const permissions = await runQuery(`
+      SELECT p.name 
+      FROM permissions p
+      JOIN role_permissions rp ON p.id = rp.permission_id
+      WHERE rp.role = ?
+    `, [socket.user.role]);
+    
+    // Add permissions to user object
+    socket.user.permissions = permissions.map(p => p.name);
+    
     next();
   } catch (error) {
     console.error('Socket authentication error:', error);

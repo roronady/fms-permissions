@@ -96,6 +96,14 @@ router.post('/login', async (req, res) => {
       [user.id]
     );
 
+    // Fetch user permissions
+    const permissions = await runQuery(`
+      SELECT p.name 
+      FROM permissions p
+      JOIN role_permissions rp ON p.id = rp.permission_id
+      WHERE rp.role = ?
+    `, [user.role]);
+
     const token = jwt.sign(
       { userId: user.id, username: user.username, role: user.role },
       JWT_SECRET,
@@ -109,7 +117,8 @@ router.post('/login', async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        role: user.role
+        role: user.role,
+        permissions: permissions.map(p => p.name)
       }
     });
   } catch (error) {
@@ -195,12 +204,22 @@ router.get('/verify', async (req, res) => {
     }
 
     const user = users[0];
+    
+    // Fetch user permissions
+    const permissions = await runQuery(`
+      SELECT p.name 
+      FROM permissions p
+      JOIN role_permissions rp ON p.id = rp.permission_id
+      WHERE rp.role = ?
+    `, [user.role]);
+
     res.json({
       user: {
         id: user.id,
         username: user.username,
         email: user.email,
-        role: user.role
+        role: user.role,
+        permissions: permissions.map(p => p.name)
       }
     });
   } catch (error) {

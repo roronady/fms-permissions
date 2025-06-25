@@ -1,6 +1,6 @@
 import express from 'express';
 import { runQuery, runStatement } from '../database/connection.js';
-import { authenticateToken, requireAdmin } from '../middleware/auth.js';
+import { authenticateToken, checkPermission, checkAnyPermission } from '../middleware/auth.js';
 import { logAuditTrail } from '../utils/audit.js';
 import { 
   calculateTotalValue,
@@ -15,7 +15,7 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Get all inventory items with search and filters
-router.get('/items', async (req, res) => {
+router.get('/items', checkPermission('inventory.view'), async (req, res) => {
   try {
     const { search, category, supplier, lowStock, itemType, page = 1, limit = 50 } = req.query;
     
@@ -152,7 +152,7 @@ router.get('/items', async (req, res) => {
 });
 
 // Get single inventory item
-router.get('/items/:id', async (req, res) => {
+router.get('/items/:id', checkPermission('inventory.view'), async (req, res) => {
   try {
     const items = await runQuery(`
       SELECT 
@@ -208,7 +208,7 @@ router.get('/items/:id', async (req, res) => {
 });
 
 // Upload image for inventory item
-router.post('/upload-image', upload.single('image'), async (req, res) => {
+router.post('/upload-image', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No image file provided' });
@@ -229,7 +229,7 @@ router.post('/upload-image', upload.single('image'), async (req, res) => {
 });
 
 // Create inventory item
-router.post('/items', async (req, res) => {
+router.post('/items', checkPermission('inventory.create'), async (req, res) => {
   try {
     const {
       name, sku, description, category_id, subcategory_id,
@@ -305,7 +305,7 @@ router.post('/items', async (req, res) => {
 });
 
 // Update inventory item
-router.put('/items/:id', async (req, res) => {
+router.put('/items/:id', checkPermission('inventory.edit'), async (req, res) => {
   try {
     const itemId = req.params.id;
     
@@ -414,7 +414,7 @@ router.put('/items/:id', async (req, res) => {
 });
 
 // Delete inventory item
-router.delete('/items/:id', async (req, res) => {
+router.delete('/items/:id', checkPermission('inventory.delete'), async (req, res) => {
   try {
     const itemId = req.params.id;
     
@@ -450,7 +450,7 @@ router.delete('/items/:id', async (req, res) => {
 });
 
 // Get dropdown data
-router.get('/dropdown-data', async (req, res) => {
+router.get('/dropdown-data', checkPermission('inventory.view'), async (req, res) => {
   try {
     const [categories, subcategories, units, locations, suppliers] = await Promise.all([
       runQuery('SELECT * FROM categories ORDER BY name'),
@@ -474,7 +474,7 @@ router.get('/dropdown-data', async (req, res) => {
 });
 
 // Export to CSV
-router.get('/export/csv', async (req, res) => {
+router.get('/export/csv', checkPermission('inventory.export'), async (req, res) => {
   try {
     const { columns, title, columnWidths } = req.query;
     const options = {
@@ -491,7 +491,7 @@ router.get('/export/csv', async (req, res) => {
 });
 
 // Import from CSV
-router.post('/import/csv', async (req, res) => {
+router.post('/import/csv', checkPermission('inventory.import'), async (req, res) => {
   try {
     await handleInventoryImport(req, res);
   } catch (error) {
@@ -501,7 +501,7 @@ router.post('/import/csv', async (req, res) => {
 });
 
 // Generate PDF report
-router.get('/export/pdf', async (req, res) => {
+router.get('/export/pdf', checkPermission('inventory.export'), async (req, res) => {
   try {
     const { columns, title, columnWidths, orientation } = req.query;
     const options = {
@@ -519,7 +519,7 @@ router.get('/export/pdf', async (req, res) => {
 });
 
 // Stock adjustment endpoint
-router.post('/adjust-stock', async (req, res) => {
+router.post('/adjust-stock', checkPermission('inventory.adjust_stock'), async (req, res) => {
   try {
     const { item_id, adjustment_type, quantity, reason } = req.body;
     
@@ -595,7 +595,7 @@ router.post('/adjust-stock', async (req, res) => {
 });
 
 // Get stock movements
-router.get('/stock-movements', async (req, res) => {
+router.get('/stock-movements', checkPermission('inventory.view_stock_movements'), async (req, res) => {
   try {
     const { itemId, startDate, endDate, movementType, page = 1, limit = 50 } = req.query;
     
@@ -688,7 +688,7 @@ router.get('/stock-movements', async (req, res) => {
 });
 
 // Export stock movements to CSV
-router.get('/stock-movements/export/csv', async (req, res) => {
+router.get('/stock-movements/export/csv', checkPermission('inventory.export'), async (req, res) => {
   try {
     const { itemId, startDate, endDate, movementType } = req.query;
     
@@ -763,7 +763,7 @@ router.get('/stock-movements/export/csv', async (req, res) => {
 });
 
 // Save column preferences
-router.post('/column-preferences', async (req, res) => {
+router.post('/column-preferences', authenticateToken, async (req, res) => {
   try {
     const { columns, preference_type, preference_data } = req.body;
     
@@ -808,7 +808,7 @@ router.post('/column-preferences', async (req, res) => {
 });
 
 // Get column preferences
-router.get('/column-preferences', async (req, res) => {
+router.get('/column-preferences', authenticateToken, async (req, res) => {
   try {
     const { preference_type } = req.query;
     

@@ -17,6 +17,7 @@ import { createUserPreferencesIndex } from './migrations/user-preferences-index.
 import { addItemTypeToInventory } from './migrations/add-item-type-to-inventory.js';
 import { addImageUrlToInventory } from './migrations/add-image-url-to-inventory.js';
 import { addUserSecurityEnhancements } from './migrations/user-security-enhancements.js';
+import { addPermissionsTables } from './migrations/add-permissions-tables.js';
 
 const migrations = [
   {
@@ -98,6 +99,11 @@ const migrations = [
     version: 19,
     name: 'add_user_security_enhancements',
     execute: addUserSecurityEnhancements
+  },
+  {
+    version: 20,
+    name: 'add_permissions_tables',
+    execute: addPermissionsTables
   }
 ];
 
