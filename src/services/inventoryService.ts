@@ -101,19 +101,30 @@ export const inventoryService = {
   },
 
   async uploadImage(file: File) {
-    const formData = new FormData();
-    formData.append('image', file);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
 
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/images/upload`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE}/images/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
 
-    return handleResponse(response);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Image upload failed:', errorText);
+        throw new Error(errorText || 'Failed to upload image');
+      }
+
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Error in uploadImage:', error);
+      throw error;
+    }
   },
 
   async getDropdownData() {

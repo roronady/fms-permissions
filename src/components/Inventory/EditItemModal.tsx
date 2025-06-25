@@ -48,6 +48,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ isOpen, onClose, onItemUp
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   useEffect(() => {
     if (isOpen && itemId) {
@@ -81,6 +82,8 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ isOpen, onClose, onItemUp
       // Set image preview if there's an image URL
       if (item.image_url) {
         setImagePreviewUrl(item.image_url);
+      } else {
+        setImagePreviewUrl('');
       }
     } catch (error) {
       console.error('Error loading item:', error);
@@ -104,6 +107,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ isOpen, onClose, onItemUp
 
     setLoading(true);
     setError('');
+    setUploadError('');
 
     try {
       // If there's an image file, upload it first
@@ -112,13 +116,20 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ isOpen, onClose, onItemUp
         try {
           setUploadingImage(true);
           const imageData = await inventoryService.uploadImage(imageFile);
-          finalImageUrl = imageData.imageUrl;
-          setUploadingImage(false);
+          if (imageData && imageData.imageUrl) {
+            finalImageUrl = imageData.imageUrl;
+            console.log("Image uploaded successfully:", finalImageUrl);
+          } else {
+            throw new Error("Failed to get image URL from server");
+          }
         } catch (error) {
-          setError('Failed to upload image. Please try again.');
+          console.error("Image upload error:", error);
+          setUploadError('Failed to upload image. Please try again.');
           setLoading(false);
           setUploadingImage(false);
           return;
+        } finally {
+          setUploadingImage(false);
         }
       }
 
@@ -135,6 +146,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ isOpen, onClose, onItemUp
       onItemUpdated();
       onClose();
     } catch (error) {
+      console.error("Update error:", error);
       setError(error instanceof Error ? error.message : 'Failed to update item');
     } finally {
       setLoading(false);
@@ -153,16 +165,19 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ isOpen, onClose, onItemUp
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Reset any previous errors
+    setUploadError('');
+
     // Check file size (5MB limit)
     if (file.size > 5 * 1024 * 1024) {
-      setError('Image file is too large. Maximum size is 5MB.');
+      setUploadError('Image file is too large. Maximum size is 5MB.');
       return;
     }
 
     // Check file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      setError('Only image files (JPEG, PNG, GIF, WEBP) are allowed.');
+      setUploadError('Only image files (JPEG, PNG, GIF, WEBP) are allowed.');
       return;
     }
 
@@ -200,6 +215,12 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ isOpen, onClose, onItemUp
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
                 {error}
+              </div>
+            )}
+
+            {uploadError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                {uploadError}
               </div>
             )}
 

@@ -68,9 +68,13 @@ export const getImagePath = (filename) => {
 export const deleteImage = (filename) => {
   if (!filename) return;
   
-  const imagePath = getImagePath(filename);
-  if (fs.existsSync(imagePath)) {
-    fs.unlinkSync(imagePath);
+  try {
+    const imagePath = getImagePath(filename);
+    if (fs.existsSync(imagePath)) {
+      fs.unlinkSync(imagePath);
+    }
+  } catch (error) {
+    console.error('Error deleting image:', error);
   }
 };
 
@@ -84,11 +88,17 @@ export const backupImages = () => {
     fs.mkdirSync(backupPath, { recursive: true });
     
     // Copy all images to backup directory
-    const files = fs.readdirSync(imagesDir);
-    for (const file of files) {
-      const srcPath = path.join(imagesDir, file);
-      const destPath = path.join(backupPath, file);
-      fs.copyFileSync(srcPath, destPath);
+    if (fs.existsSync(imagesDir)) {
+      const files = fs.readdirSync(imagesDir);
+      for (const file of files) {
+        try {
+          const srcPath = path.join(imagesDir, file);
+          const destPath = path.join(backupPath, file);
+          fs.copyFileSync(srcPath, destPath);
+        } catch (err) {
+          console.error(`Error copying file ${file}:`, err);
+        }
+      }
     }
     
     console.log(`Image backup created: ${backupPath}`);
@@ -99,13 +109,15 @@ export const backupImages = () => {
     return backupPath;
   } catch (error) {
     console.error('Error creating image backup:', error);
-    throw error;
+    return null;
   }
 };
 
 // Function to clean old image backups
 export const cleanOldImageBackups = () => {
   try {
+    if (!fs.existsSync(imageBackupsDir)) return;
+    
     const dirs = fs.readdirSync(imageBackupsDir)
       .filter(dir => dir.startsWith('images_backup_'))
       .map(dir => ({
@@ -118,8 +130,12 @@ export const cleanOldImageBackups = () => {
     // Keep only the 3 most recent backups
     if (dirs.length > 3) {
       dirs.slice(3).forEach(dir => {
-        fs.rmSync(dir.path, { recursive: true, force: true });
-        console.log(`Deleted old image backup: ${dir.name}`);
+        try {
+          fs.rmSync(dir.path, { recursive: true, force: true });
+          console.log(`Deleted old image backup: ${dir.name}`);
+        } catch (err) {
+          console.error(`Error deleting backup ${dir.name}:`, err);
+        }
       });
     }
   } catch (error) {
@@ -127,15 +143,31 @@ export const cleanOldImageBackups = () => {
   }
 };
 
+// Function to schedule the next backup
+let backupTimeout = null;
+
+const scheduleNextBackup = () => {
+  // Clear any existing timeout
+  if (backupTimeout) {
+    clearTimeout(backupTimeout);
+  }
+  
+  // Schedule next backup in 30 days (in milliseconds)
+  // Use a reasonable timeout value that fits in a 32-bit integer
+  // 7 days is a good compromise (604800000 ms)
+  backupTimeout = setTimeout(() => {
+    backupImages();
+    scheduleNextBackup(); // Schedule the next backup after this one completes
+  }, 7 * 24 * 60 * 60 * 1000);
+};
+
 // Function to start monthly image backup scheduler
 export const startImageBackupScheduler = () => {
   // Create initial backup
   backupImages();
   
-  // Schedule backups monthly (30 days)
-  setInterval(() => {
-    backupImages();
-  }, 30 * 24 * 60 * 60 * 1000);
+  // Schedule recurring backups
+  scheduleNextBackup();
   
   console.log('Image backup scheduler started (monthly)');
 };
