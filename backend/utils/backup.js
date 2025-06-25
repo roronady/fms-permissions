@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { closeDatabase, getDatabase } from '../database/connection.js';
+import { closeDatabase, getDatabase, initializeDatabase } from '../database/connection.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,20 +14,22 @@ if (!fs.existsSync(backupDir)) {
   fs.mkdirSync(backupDir, { recursive: true });
 }
 
-export const createBackup = () => {
+export const createBackup = async () => {
   try {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupPath = path.join(backupDir, `wms_backup_${timestamp}.db`);
     
-    // Close the database connection to ensure all data is written
-    const db = getDatabase();
+    // Close the database connection to ensure all data is written and file is unlocked
+    await closeDatabase();
+    
+    // Wait a bit to ensure the file is fully released
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     // Create a backup by copying the database file
-    // We need to use a stream to handle large files and avoid memory issues
-    const readStream = fs.createReadStream(dbPath);
-    const writeStream = fs.createWriteStream(backupPath);
-    
-    return new Promise((resolve, reject) => {
+    await new Promise((resolve, reject) => {
+      const readStream = fs.createReadStream(dbPath);
+      const writeStream = fs.createWriteStream(backupPath);
+      
       readStream.on('error', (err) => {
         console.error('Error reading database file:', err);
         reject(err);
@@ -40,17 +42,27 @@ export const createBackup = () => {
       
       writeStream.on('finish', () => {
         console.log(`Backup created: ${backupPath}`);
-        
-        // Clean old backups (keep last 10)
-        cleanOldBackups();
-        
         resolve(backupPath);
       });
       
       readStream.pipe(writeStream);
     });
+    
+    // Reinitialize the database connection
+    await initializeDatabase();
+    
+    // Clean old backups (keep last 10)
+    cleanOldBackups();
+    
+    return backupPath;
   } catch (error) {
     console.error('Error creating backup:', error);
+    // Ensure database is reinitialized even if backup fails
+    try {
+      await initializeDatabase();
+    } catch (reinitError) {
+      console.error('Error reinitializing database after backup failure:', reinitError);
+    }
     throw error;
   }
 };
@@ -78,55 +90,73 @@ export const cleanOldBackups = () => {
   }
 };
 
-export const startBackupScheduler = () => {
+export const startBackupScheduler = async () => {
   // Create initial backup
-  createBackup();
+  await createBackup();
   
   // Schedule backups every 6 hours
-  setInterval(() => {
-    createBackup();
+  setInterval(async () => {
+    try {
+      await createBackup();
+    } catch (error) {
+      console.error('Scheduled backup failed:', error);
+    }
   }, 6 * 60 * 60 * 1000);
   
   console.log('Backup scheduler started (every 6 hours)');
 };
 
-export const restoreBackup = (backupPath) => {
+export const restoreBackup = async (backupPath) => {
   try {
     if (!fs.existsSync(backupPath)) {
       throw new Error('Backup file not found');
     }
     
     // Create a backup of current database before restore
-    const currentBackupPath = createBackup();
+    const currentBackupPath = await createBackup();
     console.log(`Current database backed up to: ${currentBackupPath}`);
     
     // Close the database connection before restoring
-    closeDatabase().then(() => {
-      // Restore from backup
+    await closeDatabase();
+    
+    // Wait a bit to ensure the file is fully released
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Restore from backup
+    await new Promise((resolve, reject) => {
       const readStream = fs.createReadStream(backupPath);
       const writeStream = fs.createWriteStream(dbPath);
       
-      return new Promise((resolve, reject) => {
-        readStream.on('error', (err) => {
-          console.error('Error reading backup file:', err);
-          reject(err);
-        });
-        
-        writeStream.on('error', (err) => {
-          console.error('Error writing to database file:', err);
-          reject(err);
-        });
-        
-        writeStream.on('finish', () => {
-          console.log(`Database restored from: ${backupPath}`);
-          resolve(true);
-        });
-        
-        readStream.pipe(writeStream);
+      readStream.on('error', (err) => {
+        console.error('Error reading backup file:', err);
+        reject(err);
       });
+      
+      writeStream.on('error', (err) => {
+        console.error('Error writing to database file:', err);
+        reject(err);
+      });
+      
+      writeStream.on('finish', () => {
+        console.log(`Database restored from: ${backupPath}`);
+        resolve(true);
+      });
+      
+      readStream.pipe(writeStream);
     });
+    
+    // Reinitialize the database connection
+    await initializeDatabase();
+    
+    return true;
   } catch (error) {
     console.error('Error restoring backup:', error);
+    // Ensure database is reinitialized even if restore fails
+    try {
+      await initializeDatabase();
+    } catch (reinitError) {
+      console.error('Error reinitializing database after restore failure:', reinitError);
+    }
     throw error;
   }
 };

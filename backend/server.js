@@ -110,10 +110,10 @@ initializeDatabase()
     console.log('Database initialized, running migrations...');
     return runMigrations();
   })
-  .then(() => {
+  .then(async () => {
     console.log('Migrations completed successfully');
-    // Start backup scheduler
-    startBackupScheduler();
+    // Start backup scheduler and wait for initial backup to complete
+    await startBackupScheduler();
     // Start image backup scheduler (monthly)
     startImageBackupScheduler();
     server.listen(PORT, () => {
