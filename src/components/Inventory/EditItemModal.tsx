@@ -80,7 +80,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({ isOpen, onClose, onItemUp
       
       // Set image preview if there's an image URL
       if (item.image_url) {
-        setImagePreviewUrl('');
+        setImagePreviewUrl(item.image_url);
       }
     } catch (error) {
       console.error('Error loading item:', error);

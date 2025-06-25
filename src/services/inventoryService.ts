@@ -105,7 +105,7 @@ export const inventoryService = {
     formData.append('image', file);
 
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE}/inventory/upload-image`, {
+    const response = await fetch(`${API_BASE}/images/upload`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
