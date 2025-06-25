@@ -734,6 +734,11 @@ router.post('/column-preferences', async (req, res) => {
     );
     
     const dataToSave = preference_data || JSON.stringify(columns);
+    console.log('Saving preferences to database:', { 
+      user_id: req.user.id, 
+      preference_type, 
+      data: dataToSave 
+    });
     
     if (existingPrefs.length > 0) {
       // Update existing preferences
@@ -741,12 +746,14 @@ router.post('/column-preferences', async (req, res) => {
         'UPDATE user_preferences SET preference_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
         [dataToSave, existingPrefs[0].id]
       );
+      console.log('Updated existing preferences with ID:', existingPrefs[0].id);
     } else {
       // Create new preferences
-      await runStatement(
+      const result = await runStatement(
         'INSERT INTO user_preferences (user_id, preference_type, preference_data) VALUES (?, ?, ?)',
         [req.user.id, preference_type, dataToSave]
       );
+      console.log('Created new preferences with ID:', result.id);
     }
     
     res.json({ message: 'Column preferences saved successfully' });
@@ -765,14 +772,18 @@ router.get('/column-preferences', async (req, res) => {
       return res.status(400).json({ error: 'Preference type is required' });
     }
     
+    console.log('Fetching preferences for user:', req.user.id, 'type:', preference_type);
+    
     const preferences = await runQuery(
       'SELECT preference_data FROM user_preferences WHERE user_id = ? AND preference_type = ?',
       [req.user.id, preference_type]
     );
     
     if (preferences.length > 0) {
+      console.log('Found preferences:', preferences[0].preference_data);
       res.json({ columns: preferences[0].preference_data });
     } else {
+      console.log('No preferences found');
       res.json({ columns: null });
     }
   } catch (error) {

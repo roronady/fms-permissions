@@ -35,6 +35,7 @@ const handleResponse = async (response: Response) => {
 
 export const columnPreferenceService = {
   async saveColumnPreferences(pageId: string, columns: any[]) {
+    console.log('Saving column preferences for', pageId, columns);
     const response = await fetch(`${API_BASE}/inventory/column-preferences`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -49,13 +50,17 @@ export const columnPreferenceService = {
 
   async getColumnPreferences(pageId: string) {
     try {
+      console.log('Fetching column preferences for', pageId);
       const response = await fetch(`${API_BASE}/inventory/column-preferences?preference_type=${pageId}`, {
         headers: getAuthHeaders(),
       });
 
       const result = await handleResponse(response);
+      console.log('Received preferences:', result);
+      
       if (result && result.columns) {
         try {
+          // Try to parse the columns field
           return JSON.parse(result.columns);
         } catch (e) {
           console.error('Failed to parse column preferences:', e);

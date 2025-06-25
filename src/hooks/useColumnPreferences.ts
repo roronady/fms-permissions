@@ -14,20 +14,27 @@ export const useColumnPreferences = (
   useEffect(() => {
     const loadPreferences = async () => {
       try {
+        console.log('Loading preferences for', pageId);
         setLoading(true);
         const savedColumns = await columnPreferenceService.getColumnPreferences(pageId);
+        console.log('Loaded preferences:', savedColumns);
         
-        if (savedColumns && savedColumns.length > 0) {
+        if (savedColumns && Array.isArray(savedColumns) && savedColumns.length > 0) {
           // Merge saved preferences with default columns to handle any new columns added
           const mergedColumns = defaultColumns.map(defaultCol => {
             const savedCol = savedColumns.find((col: Column) => col.id === defaultCol.id);
             return savedCol ? { ...defaultCol, ...savedCol } : defaultCol;
           });
           
+          console.log('Merged columns:', mergedColumns);
           setColumns(mergedColumns);
+        } else {
+          console.log('No saved preferences found, using defaults');
+          setColumns(defaultColumns);
         }
       } catch (error) {
         console.error('Error loading column preferences:', error);
+        setColumns(defaultColumns);
       } finally {
         setLoading(false);
       }
@@ -38,6 +45,7 @@ export const useColumnPreferences = (
 
   const handleSaveColumnPreferences = async (updatedColumns: Column[]) => {
     try {
+      console.log('Saving column preferences:', updatedColumns);
       await columnPreferenceService.saveColumnPreferences(pageId, updatedColumns);
       setColumns(updatedColumns);
     } catch (error) {
