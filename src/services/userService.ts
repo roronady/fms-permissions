@@ -10,12 +10,22 @@ const getAuthHeaders = () => {
 
 const handleResponse = async (response: Response) => {
   if (!response.ok) {
+    // Capture the raw response text for better debugging
+    const text = await response.text();
+    console.error('Backend error response:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: response.url,
+      body: text
+    });
+    
     let errorMessage = 'Request failed';
     try {
-      const errorData = await response.json();
-      errorMessage = errorData.error || errorMessage;
+      const errorData = JSON.parse(text);
+      errorMessage = errorData.error || errorData.message || errorMessage;
     } catch (e) {
-      errorMessage = response.statusText || errorMessage;
+      // If JSON parsing fails, use the raw text as the error message
+      errorMessage = text || response.statusText || errorMessage;
     }
     throw new Error(errorMessage);
   }
@@ -178,18 +188,45 @@ export const userService = {
   },
 
   async updateUserSpecificPermissions(userId: number, permissions: any[]) {
+    // Enhanced validation and logging for better debugging
+    console.log('updateUserSpecificPermissions called with:', { userId, permissions });
+    
     // Validate and convert userId to ensure it's a valid number
     const validUserId = parseInt(userId.toString(), 10);
     if (!Number.isInteger(validUserId) || validUserId <= 0) {
+      console.error('Invalid userId provided:', { original: userId, parsed: validUserId });
       throw new Error('Invalid user ID: must be a positive integer');
     }
 
-    const response = await fetch(`${API_BASE}/users/${validUserId}/specific-permissions`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ permissions }),
-    });
+    // Validate permissions array
+    if (!Array.isArray(permissions)) {
+      console.error('Invalid permissions provided - not an array:', permissions);
+      throw new Error('Permissions must be an array');
+    }
 
-    return handleResponse(response);
+    // Log the request details for debugging
+    const requestUrl = `${API_BASE}/users/${validUserId}/specific-permissions`;
+    const requestBody = { permissions };
+    
+    console.log('Making request to:', requestUrl);
+    console.log('Request body:', requestBody);
+
+    try {
+      const response = await fetch(requestUrl, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(requestBody),
+      });
+
+      return await handleResponse(response);
+    } catch (error) {
+      console.error('Error in updateUserSpecificPermissions:', {
+        userId: validUserId,
+        permissions,
+        error: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
   }
 };
