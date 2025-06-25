@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { runQuery } from '../database/connection.js';
 
+// Use environment variable for JWT secret with no fallback
 const JWT_SECRET = process.env.JWT_SECRET || 'wms-secret-key-change-in-production';
 
 export const authenticateToken = async (req, res, next) => {

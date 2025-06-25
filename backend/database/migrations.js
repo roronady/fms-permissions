@@ -16,6 +16,7 @@ import { createProductionOrdersTables } from './migrations/production-orders-tab
 import { createUserPreferencesIndex } from './migrations/user-preferences-index.js';
 import { addItemTypeToInventory } from './migrations/add-item-type-to-inventory.js';
 import { addImageUrlToInventory } from './migrations/add-image-url-to-inventory.js';
+import { addUserSecurityEnhancements } from './migrations/user-security-enhancements.js';
 
 const migrations = [
   {
@@ -92,6 +93,11 @@ const migrations = [
     version: 18,
     name: 'add_image_url_to_inventory',
     execute: addImageUrlToInventory
+  },
+  {
+    version: 19,
+    name: 'add_user_security_enhancements',
+    execute: addUserSecurityEnhancements
   }
 ];
 

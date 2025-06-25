@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { LogIn, Package } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { LogIn, Package, AlertTriangle, Info } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Login: React.FC = () => {
@@ -7,6 +7,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPasswordInfo, setShowPasswordInfo] = useState(false);
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,9 +64,19 @@ const Login: React.FC = () => {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                <button 
+                  type="button" 
+                  onClick={() => setShowPasswordInfo(!showPasswordInfo)}
+                  className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
+                >
+                  <Info className="h-3 w-3 mr-1" />
+                  Password Requirements
+                </button>
+              </div>
               <input
                 id="password"
                 name="password"
@@ -77,6 +88,19 @@ const Login: React.FC = () => {
                 placeholder="Enter your password"
               />
             </div>
+
+            {showPasswordInfo && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-xs">
+                <div className="font-medium mb-1">Password must:</div>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Be at least 8 characters long</li>
+                  <li>Include at least one uppercase letter</li>
+                  <li>Include at least one lowercase letter</li>
+                  <li>Include at least one number</li>
+                  <li>Include at least one special character</li>
+                </ul>
+              </div>
+            )}
 
             <button
               type="submit"

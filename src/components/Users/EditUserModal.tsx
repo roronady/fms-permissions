@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Save } from 'lucide-react';
+import { X, User, Save, Info, AlertTriangle } from 'lucide-react';
 import { userService } from '../../services/userService';
 
 interface EditUserModalProps {
@@ -19,6 +19,8 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onUserUp
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+  const [showPasswordInfo, setShowPasswordInfo] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -35,13 +37,28 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onUserUp
     e.preventDefault();
     setLoading(true);
     setError('');
+    setPasswordErrors([]);
 
     try {
       await userService.updateUser(user.id, formData);
       onUserUpdated();
       onClose();
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to update user');
+      if (error instanceof Error) {
+        setError(error.message);
+        
+        // Check if the error contains password validation details
+        try {
+          const errorObj = JSON.parse(error.message);
+          if (errorObj.details && Array.isArray(errorObj.details)) {
+            setPasswordErrors(errorObj.details);
+          }
+        } catch (e) {
+          // Not a JSON error, just use the error message as is
+        }
+      } else {
+        setError('Failed to update user');
+      }
     } finally {
       setLoading(false);
     }
@@ -80,6 +97,22 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onUserUp
             </div>
           )}
 
+          {passwordErrors.length > 0 && (
+            <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg">
+              <div className="flex items-start">
+                <AlertTriangle className="h-5 w-5 text-yellow-500 mr-2 mt-0.5" />
+                <div>
+                  <p className="font-medium">Password requirements not met:</p>
+                  <ul className="list-disc list-inside mt-1">
+                    {passwordErrors.map((err, index) => (
+                      <li key={index}>{err}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Username *
@@ -93,6 +126,9 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onUserUp
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Enter username"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              3-30 characters, letters, numbers, underscores, and hyphens only
+            </p>
           </div>
 
           <div>
@@ -127,9 +163,19 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onUserUp
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              New Password
-            </label>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                New Password
+              </label>
+              <button 
+                type="button" 
+                onClick={() => setShowPasswordInfo(!showPasswordInfo)}
+                className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
+              >
+                <Info className="h-3 w-3 mr-1" />
+                Password Requirements
+              </button>
+            </div>
             <input
               type="password"
               name="password"
@@ -142,6 +188,19 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, onUserUp
               Leave blank to keep the current password
             </p>
           </div>
+
+          {showPasswordInfo && (
+            <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-xs">
+              <div className="font-medium mb-1">Password must:</div>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Be at least 8 characters long</li>
+                <li>Include at least one uppercase letter</li>
+                <li>Include at least one lowercase letter</li>
+                <li>Include at least one number</li>
+                <li>Include at least one special character</li>
+              </ul>
+            </div>
+          )}
 
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
             <button

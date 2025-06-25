@@ -61,4 +61,42 @@ export const authService = {
 
     return handleResponse(response);
   },
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE}/auth/change-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+
+    return handleResponse(response);
+  },
+
+  async requestPasswordReset(email: string) {
+    const response = await fetch(`${API_BASE}/auth/forgot-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    return handleResponse(response);
+  },
+
+  async resetPassword(token: string, password: string) {
+    const response = await fetch(`${API_BASE}/auth/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, password }),
+    });
+
+    return handleResponse(response);
+  }
 };

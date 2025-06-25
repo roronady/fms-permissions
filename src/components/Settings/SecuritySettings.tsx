@@ -1,44 +1,59 @@
-import React, { useState, useEffect } from 'react';
-import { X, User, Save, Info, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { 
+  Shield, 
+  Key, 
+  Save, 
+  AlertTriangle, 
+  Info,
+  CheckCircle
+} from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { authService } from '../../services/authService';
 
-interface AddUserModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onUserAdded: () => void;
-}
-
-const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onUserAdded }) => {
+const SecuritySettings: React.FC = () => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    role: 'user'
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
   });
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const [showPasswordInfo, setShowPasswordInfo] = useState(false);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess('');
     setPasswordErrors([]);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+    // Validate passwords match
+    if (formData.newPassword !== formData.confirmPassword) {
+      setError('New passwords do not match');
       setLoading(false);
       return;
     }
 
     try {
-      await authService.register(formData.username, formData.email, formData.password, formData.role);
-      onUserAdded();
-      onClose();
-      resetForm();
+      await authService.changePassword(formData.currentPassword, formData.newPassword);
+      setSuccess('Password changed successfully');
+      // Reset form
+      setFormData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);
@@ -53,55 +68,57 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onUserAdde
           // Not a JSON error, just use the error message as is
         }
       } else {
-        setError('Failed to create user');
+        setError('Failed to change password');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      username: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      role: 'user'
-    });
-    setError('');
-    setPasswordErrors([]);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  if (!isOpen) return null;
+  if (!user) {
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+        <div className="flex items-start">
+          <AlertTriangle className="h-5 w-5 text-yellow-500 mr-2 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-yellow-800">Authentication Required</h3>
+            <p className="text-sm text-yellow-700 mt-1">
+              Please log in to access security settings.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center">
+        <Shield className="h-6 w-6 text-blue-600 mr-3" />
+        <h2 className="text-xl font-semibold text-gray-900">Security Settings</h2>
+      </div>
+
+      {/* Change Password Form */}
+      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center">
-            <User className="h-6 w-6 text-blue-600 mr-3" />
-            <h2 className="text-xl font-semibold text-gray-900">Add New User</h2>
+            <Key className="h-5 w-5 text-blue-600 mr-2" />
+            <h3 className="font-semibold text-gray-900">Change Password</h3>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="h-5 w-5 text-gray-500" />
-          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
               {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center">
+              <CheckCircle className="h-5 w-5 mr-2" />
+              {success}
             </div>
           )}
 
@@ -123,41 +140,23 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onUserAdde
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Username *
+              Current Password *
             </label>
             <input
-              type="text"
-              name="username"
-              value={formData.username}
+              type="password"
+              name="currentPassword"
+              value={formData.currentPassword}
               onChange={handleInputChange}
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Enter username"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              3-30 characters, letters, numbers, underscores, and hyphens only
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email *
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Enter email"
+              placeholder="Enter your current password"
             />
           </div>
 
           <div>
             <div className="flex justify-between items-center mb-2">
               <label className="block text-sm font-medium text-gray-700">
-                Password *
+                New Password *
               </label>
               <button 
                 type="button" 
@@ -170,12 +169,12 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onUserAdde
             </div>
             <input
               type="password"
-              name="password"
-              value={formData.password}
+              name="newPassword"
+              value={formData.newPassword}
               onChange={handleInputChange}
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Enter password"
+              placeholder="Enter new password"
             />
           </div>
 
@@ -194,7 +193,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onUserAdde
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Confirm Password *
+              Confirm New Password *
             </label>
             <input
               type="password"
@@ -203,34 +202,11 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onUserAdde
               onChange={handleInputChange}
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Confirm password"
+              placeholder="Confirm new password"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Role *
-            </label>
-            <select
-              name="role"
-              value={formData.role}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="user">User</option>
-              <option value="manager">Manager</option>
-              <option value="admin">Administrator</option>
-            </select>
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
+          <div className="flex justify-end pt-4">
             <button
               type="submit"
               disabled={loading}
@@ -241,13 +217,32 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onUserAdde
               ) : (
                 <Save className="h-4 w-4 mr-2" />
               )}
-              {loading ? 'Creating...' : 'Create User'}
+              {loading ? 'Updating...' : 'Change Password'}
             </button>
           </div>
         </form>
+      </div>
+
+      {/* Security Information */}
+      <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+        <div className="flex items-start">
+          <Shield className="h-5 w-5 text-blue-500 mr-2 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-medium text-blue-800">Account Security Information</h3>
+            <p className="text-sm text-blue-700 mt-1">
+              Your account is protected by password-based authentication. For enhanced security:
+            </p>
+            <ul className="list-disc list-inside text-sm text-blue-700 mt-2 space-y-1">
+              <li>Use a strong, unique password that you don't use elsewhere</li>
+              <li>Change your password regularly</li>
+              <li>Never share your password with others</li>
+              <li>Log out when using shared computers</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-export default AddUserModal;
+export default SecuritySettings;
