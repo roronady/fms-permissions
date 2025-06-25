@@ -85,12 +85,22 @@ export const userService = {
   },
 
   async getRolePermissions() {
-    const response = await fetch(`${API_BASE}/users/role-permissions`, {
-      headers: getAuthHeaders(),
-    });
+    try {
+      const response = await fetch(`${API_BASE}/users/role-permissions`, {
+        headers: getAuthHeaders(),
+      });
 
-    const result = await handleResponse(response);
-    return Array.isArray(result) ? result : [];
+      const result = await handleResponse(response);
+      return Array.isArray(result) ? result : [];
+    } catch (error) {
+      console.error('Error fetching role permissions:', error);
+      // Return default roles with empty permissions as fallback
+      return [
+        { role: 'admin', permissions: [] },
+        { role: 'manager', permissions: [] },
+        { role: 'user', permissions: [] }
+      ];
+    }
   },
 
   async updateRolePermissions(rolePermissions: any[]) {
@@ -124,12 +134,18 @@ export const userService = {
 
   // New methods for dynamic roles
   async getRoles() {
-    const response = await fetch(`${API_BASE}/users/roles`, {
-      headers: getAuthHeaders(),
-    });
+    try {
+      const response = await fetch(`${API_BASE}/users/roles`, {
+        headers: getAuthHeaders(),
+      });
 
-    const result = await handleResponse(response);
-    return Array.isArray(result) ? result : ['admin', 'manager', 'user'];
+      const result = await handleResponse(response);
+      return Array.isArray(result) ? result : ['admin', 'manager', 'user'];
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+      // Return default roles as fallback
+      return ['admin', 'manager', 'user'];
+    }
   },
 
   async createRole(role: string, permissions: string[] = []) {

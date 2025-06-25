@@ -42,6 +42,7 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
   const loadPermissions = async () => {
     try {
       setLoading(true);
+      setError('');
       const data = await userService.getPermissions();
       setPermissions(data);
     } catch (error) {
@@ -55,6 +56,7 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
   const loadRolePermissions = async () => {
     try {
       setLoading(true);
+      setError('');
       const data = await userService.getRolePermissions();
       setRolePermissions(data);
     } catch (error) {
@@ -132,7 +134,7 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
       setSuccess(`Role "${newRoleName}" created successfully`);
       
       // Reload role permissions to ensure we have the latest data
-      loadRolePermissions();
+      await loadRolePermissions();
     } catch (error) {
       console.error('Error adding role:', error);
       setAddRoleError(error instanceof Error ? error.message : 'Failed to add role');
@@ -241,7 +243,10 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
             </div>
             <div className="flex space-x-2">
               <button
-                onClick={loadPermissions}
+                onClick={() => {
+                  loadPermissions();
+                  loadRolePermissions();
+                }}
                 className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
