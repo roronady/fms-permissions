@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Shield, Search, Check, RefreshCw, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { X, Save, Shield, Search, Check, RefreshCw, Plus, Trash2 } from 'lucide-react';
 import { userService } from '../../services/userService';
 
 interface PermissionManagerProps {
@@ -330,20 +330,6 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
                 )}
               </div>
             ))}
-          </div>
-
-          <div className="mt-4 bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
-            <div className="flex items-start">
-              <AlertTriangle className="h-5 w-5 text-yellow-500 mr-2 mt-0.5" />
-              <div className="text-sm text-yellow-700">
-                <p className="font-medium">Role Management Notes:</p>
-                <ul className="list-disc list-inside mt-1">
-                  <li>The built-in roles (admin, manager, user) cannot be deleted</li>
-                  <li>Admin role always has all permissions and cannot be modified</li>
-                  <li>You cannot delete a role that is assigned to users</li>
-                </ul>
-              </div>
-            </div>
           </div>
         </div>
 
