@@ -16,13 +16,13 @@ export const useColumnPreferences = (
       try {
         console.log('Loading preferences for', pageId);
         setLoading(true);
-        const savedColumns = await columnPreferenceService.getColumnPreferences(pageId);
-        console.log('Loaded preferences:', savedColumns);
+        const savedPreferences = await columnPreferenceService.getColumnPreferences(pageId);
+        console.log('Loaded preferences:', savedPreferences);
         
-        if (savedColumns && Array.isArray(savedColumns) && savedColumns.length > 0) {
+        if (savedPreferences && Array.isArray(savedPreferences)) {
           // Merge saved preferences with default columns to handle any new columns added
           const mergedColumns = defaultColumns.map(defaultCol => {
-            const savedCol = savedColumns.find((col: Column) => col.id === defaultCol.id);
+            const savedCol = savedPreferences.find(col => col.id === defaultCol.id);
             return savedCol ? { ...defaultCol, ...savedCol } : defaultCol;
           });
           
