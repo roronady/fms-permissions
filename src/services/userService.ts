@@ -74,7 +74,7 @@ export const userService = {
     return handleResponse(response);
   },
 
-  // New methods for permission management
+  // Permission management methods
   async getPermissions() {
     const response = await fetch(`${API_BASE}/users/permissions`, {
       headers: getAuthHeaders(),
@@ -114,6 +114,55 @@ export const userService = {
 
   async updateUserPermissions(userId: number, permissions: string[]) {
     const response = await fetch(`${API_BASE}/users/${userId}/permissions`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ permissions }),
+    });
+
+    return handleResponse(response);
+  },
+
+  // New methods for dynamic roles
+  async getRoles() {
+    const response = await fetch(`${API_BASE}/users/roles`, {
+      headers: getAuthHeaders(),
+    });
+
+    const result = await handleResponse(response);
+    return Array.isArray(result) ? result : ['admin', 'manager', 'user'];
+  },
+
+  async createRole(role: string, permissions: string[] = []) {
+    const response = await fetch(`${API_BASE}/users/roles`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ role, permissions }),
+    });
+
+    return handleResponse(response);
+  },
+
+  async deleteRole(role: string) {
+    const response = await fetch(`${API_BASE}/users/roles/${role}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+
+    return handleResponse(response);
+  },
+
+  // User-specific permissions
+  async getUserSpecificPermissions(userId: number) {
+    const response = await fetch(`${API_BASE}/users/${userId}/specific-permissions`, {
+      headers: getAuthHeaders(),
+    });
+
+    const result = await handleResponse(response);
+    return Array.isArray(result) ? result : [];
+  },
+
+  async updateUserSpecificPermissions(userId: number, permissions: any[]) {
+    const response = await fetch(`${API_BASE}/users/${userId}/specific-permissions`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify({ permissions }),

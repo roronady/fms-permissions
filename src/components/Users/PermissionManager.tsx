@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Shield, Search, Check, RefreshCw } from 'lucide-react';
+import { X, Save, Shield, Search, Check, RefreshCw, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { userService } from '../../services/userService';
 
 interface PermissionManagerProps {
@@ -28,6 +28,9 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
   const [success, setSuccess] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [newRoleName, setNewRoleName] = useState('');
+  const [showAddRole, setShowAddRole] = useState(false);
+  const [addRoleError, setAddRoleError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -94,6 +97,70 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
       setError(error instanceof Error ? error.message : 'Failed to save permissions');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAddRole = async () => {
+    try {
+      setAddRoleError('');
+      
+      if (!newRoleName.trim()) {
+        setAddRoleError('Role name is required');
+        return;
+      }
+      
+      // Check if role already exists
+      if (rolePermissions.some(rp => rp.role.toLowerCase() === newRoleName.toLowerCase())) {
+        setAddRoleError('Role already exists');
+        return;
+      }
+      
+      // Create new role
+      await userService.createRole(newRoleName);
+      
+      // Add new role to local state
+      setRolePermissions(prev => [
+        ...prev,
+        { role: newRoleName, permissions: [] }
+      ]);
+      
+      // Reset form
+      setNewRoleName('');
+      setShowAddRole(false);
+      
+      // Show success message
+      setSuccess(`Role "${newRoleName}" created successfully`);
+      
+      // Reload role permissions to ensure we have the latest data
+      loadRolePermissions();
+    } catch (error) {
+      console.error('Error adding role:', error);
+      setAddRoleError(error instanceof Error ? error.message : 'Failed to add role');
+    }
+  };
+
+  const handleDeleteRole = async (role: string) => {
+    try {
+      // Don't allow deleting built-in roles
+      if (['admin', 'manager', 'user'].includes(role)) {
+        setError('Cannot delete built-in roles');
+        return;
+      }
+      
+      if (!confirm(`Are you sure you want to delete the role "${role}"?`)) {
+        return;
+      }
+      
+      await userService.deleteRole(role);
+      
+      // Remove role from local state
+      setRolePermissions(prev => prev.filter(rp => rp.role !== role));
+      
+      // Show success message
+      setSuccess(`Role "${role}" deleted successfully`);
+    } catch (error) {
+      console.error('Error deleting role:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete role');
     }
   };
 
@@ -208,6 +275,78 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
           )}
         </div>
 
+        {/* Role Management */}
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900">Roles</h3>
+            <button
+              onClick={() => setShowAddRole(!showAddRole)}
+              className="flex items-center px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Role
+            </button>
+          </div>
+
+          {showAddRole && (
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Create New Role</h4>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newRoleName}
+                  onChange={(e) => setNewRoleName(e.target.value)}
+                  placeholder="Enter role name"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                <button
+                  onClick={handleAddRole}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Create Role
+                </button>
+              </div>
+              {addRoleError && (
+                <p className="mt-2 text-sm text-red-600">{addRoleError}</p>
+              )}
+              <p className="mt-2 text-xs text-gray-500">
+                Note: New roles will have no permissions by default. You'll need to assign permissions after creation.
+              </p>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            {rolePermissions.map(rp => (
+              <div key={rp.role} className="flex items-center bg-gray-100 px-3 py-1 rounded-full">
+                <span className="text-sm font-medium text-gray-700">{rp.role}</span>
+                {!['admin', 'manager', 'user'].includes(rp.role) && (
+                  <button
+                    onClick={() => handleDeleteRole(rp.role)}
+                    className="ml-2 text-red-500 hover:text-red-700"
+                    title="Delete role"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+            <div className="flex items-start">
+              <AlertTriangle className="h-5 w-5 text-yellow-500 mr-2 mt-0.5" />
+              <div className="text-sm text-yellow-700">
+                <p className="font-medium">Role Management Notes:</p>
+                <ul className="list-disc list-inside mt-1">
+                  <li>The built-in roles (admin, manager, user) cannot be deleted</li>
+                  <li>Admin role always has all permissions and cannot be modified</li>
+                  <li>You cannot delete a role that is assigned to users</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto min-h-0">
           {loading ? (
@@ -226,22 +365,18 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
                         Description
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Admin
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Manager
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        User
-                      </th>
+                      {rolePermissions.map(rp => (
+                        <th key={rp.role} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {rp.role}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {Object.entries(groupedPermissions).map(([category, perms]) => (
                       <React.Fragment key={category}>
                         <tr className="bg-gray-50">
-                          <td colSpan={5} className="px-6 py-3">
+                          <td colSpan={2 + rolePermissions.length} className="px-6 py-3">
                             <h3 className="text-sm font-semibold text-gray-900 uppercase">
                               {category.charAt(0).toUpperCase() + category.slice(1)}
                             </h3>
@@ -255,21 +390,20 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
                             <td className="px-6 py-4 text-sm text-gray-500">
                               {permission.description}
                             </td>
-                            {['admin', 'manager', 'user'].map(role => {
-                              const rolePermission = rolePermissions.find(rp => rp.role === role);
-                              const hasPermission = rolePermission?.permissions.includes(permission.name) || false;
+                            {rolePermissions.map(rp => {
+                              const hasPermission = rp.permissions.includes(permission.name);
                               
                               return (
-                                <td key={role} className="px-6 py-4 whitespace-nowrap text-center">
+                                <td key={rp.role} className="px-6 py-4 whitespace-nowrap text-center">
                                   <button
-                                    onClick={() => handlePermissionToggle(role, permission.name)}
+                                    onClick={() => handlePermissionToggle(rp.role, permission.name)}
                                     className={`w-6 h-6 rounded-md flex items-center justify-center ${
                                       hasPermission 
                                         ? 'bg-green-100 text-green-600 hover:bg-green-200' 
                                         : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                                     }`}
-                                    disabled={role === 'admin'} // Admin always has all permissions
-                                    title={role === 'admin' ? 'Admins always have all permissions' : ''}
+                                    disabled={rp.role === 'admin'} // Admin always has all permissions
+                                    title={rp.role === 'admin' ? 'Admins always have all permissions' : ''}
                                   >
                                     {hasPermission && <Check className="w-4 h-4" />}
                                   </button>

@@ -22,16 +22,36 @@ export const authenticateToken = async (req, res, next) => {
 
     req.user = users[0];
     
-    // Fetch user permissions based on role
-    const permissions = await runQuery(`
+    // Fetch role-based permissions
+    const rolePermissions = await runQuery(`
       SELECT p.name 
       FROM permissions p
       JOIN role_permissions rp ON p.id = rp.permission_id
       WHERE rp.role = ?
     `, [req.user.role]);
     
+    // Fetch user-specific permissions
+    const userSpecificPermissions = await runQuery(`
+      SELECT p.name, usp.grant_type
+      FROM user_specific_permissions usp
+      JOIN permissions p ON usp.permission_id = p.id
+      WHERE usp.user_id = ?
+    `, [req.user.id]);
+    
+    // Start with role-based permissions
+    const permissions = new Set(rolePermissions.map(p => p.name));
+    
+    // Apply user-specific permissions (overrides)
+    userSpecificPermissions.forEach(p => {
+      if (p.grant_type === 'allow') {
+        permissions.add(p.name);
+      } else if (p.grant_type === 'deny') {
+        permissions.delete(p.name);
+      }
+    });
+    
     // Add permissions to user object
-    req.user.permissions = permissions.map(p => p.name);
+    req.user.permissions = Array.from(permissions);
     
     next();
   } catch (error) {
@@ -125,16 +145,36 @@ export const authenticateSocket = async (socket, next) => {
 
     socket.user = users[0];
     
-    // Fetch user permissions based on role
-    const permissions = await runQuery(`
+    // Fetch role-based permissions
+    const rolePermissions = await runQuery(`
       SELECT p.name 
       FROM permissions p
       JOIN role_permissions rp ON p.id = rp.permission_id
       WHERE rp.role = ?
     `, [socket.user.role]);
     
+    // Fetch user-specific permissions
+    const userSpecificPermissions = await runQuery(`
+      SELECT p.name, usp.grant_type
+      FROM user_specific_permissions usp
+      JOIN permissions p ON usp.permission_id = p.id
+      WHERE usp.user_id = ?
+    `, [socket.user.id]);
+    
+    // Start with role-based permissions
+    const permissions = new Set(rolePermissions.map(p => p.name));
+    
+    // Apply user-specific permissions (overrides)
+    userSpecificPermissions.forEach(p => {
+      if (p.grant_type === 'allow') {
+        permissions.add(p.name);
+      } else if (p.grant_type === 'deny') {
+        permissions.delete(p.name);
+      }
+    });
+    
     // Add permissions to user object
-    socket.user.permissions = permissions.map(p => p.name);
+    socket.user.permissions = Array.from(permissions);
     
     next();
   } catch (error) {

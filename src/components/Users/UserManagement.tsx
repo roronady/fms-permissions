@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, Edit, Trash2, Shield, User, RefreshCw, Columns } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Shield, User, RefreshCw, Columns, Settings } from 'lucide-react';
 import { userService } from '../../services/userService';
 import { useAuth } from '../../contexts/AuthContext';
 import AddUserModal from './AddUserModal';
 import EditUserModal from './EditUserModal';
 import PermissionManager from './PermissionManager';
+import UserPermissionsModal from './UserPermissionsModal';
 import ColumnCustomizerModal, { Column } from '../Common/ColumnCustomizer';
 import { useColumnPreferences } from '../../hooks/useColumnPreferences';
 
@@ -12,7 +13,7 @@ interface User {
   id: number;
   username: string;
   email: string;
-  role: 'admin' | 'manager' | 'user';
+  role: string;
   created_at: string;
   updated_at: string;
 }
@@ -22,7 +23,7 @@ const DEFAULT_COLUMNS: Column[] = [
   { id: 'role', label: 'Role', visible: true, width: 120, order: 2 },
   { id: 'created', label: 'Created', visible: true, width: 150, order: 3 },
   { id: 'updated', label: 'Last Updated', visible: true, width: 150, order: 4 },
-  { id: 'actions', label: 'Actions', visible: true, width: 120, order: 5 }
+  { id: 'actions', label: 'Actions', visible: true, width: 150, order: 5 }
 ];
 
 const UserManagement: React.FC = () => {
@@ -31,7 +32,9 @@ const UserManagement: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [showUserPermissionsModal, setShowUserPermissionsModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [selectedUser, setSelectedUser] = useState<{id: number, username: string, role: string} | null>(null);
   const { user: currentUser, hasPermission } = useAuth();
 
   const { 
@@ -85,6 +88,11 @@ const UserManagement: React.FC = () => {
     setShowPermissionModal(true);
   };
 
+  const handleManageUserPermissions = (userId: number, username: string, role: string) => {
+    setSelectedUser({ id: userId, username, role });
+    setShowUserPermissionsModal(true);
+  };
+
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'admin':
@@ -110,6 +118,7 @@ const UserManagement: React.FC = () => {
   const adminCount = users.filter(u => u.role === 'admin').length;
   const managerCount = users.filter(u => u.role === 'manager').length;
   const userCount = users.filter(u => u.role === 'user').length;
+  const customRolesCount = users.filter(u => !['admin', 'manager', 'user'].includes(u.role)).length;
 
   if (loading) {
     return (
@@ -148,7 +157,7 @@ const UserManagement: React.FC = () => {
               className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
               <Shield className="h-4 w-4 mr-2" />
-              Manage Permissions
+              Manage Roles & Permissions
             </button>
           )}
           {hasPermission('user.create') && (
@@ -199,7 +208,7 @@ const UserManagement: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Regular Users</p>
-              <p className="text-2xl font-bold text-gray-900">{userCount}</p>
+              <p className="text-2xl font-bold text-gray-900">{userCount + customRolesCount}</p>
             </div>
             <User className="h-8 w-8 text-green-500" />
           </div>
@@ -275,10 +284,20 @@ const UserManagement: React.FC = () => {
                         return (
                           <td key={column.id} className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex items-center justify-end gap-2">
+                              {hasPermission('user.manage_permissions') && (
+                                <button
+                                  onClick={() => handleManageUserPermissions(user.id, user.username, user.role)}
+                                  className="text-purple-600 hover:text-purple-900 p-1 rounded hover:bg-purple-50 transition-colors"
+                                  title="Manage User Permissions"
+                                >
+                                  <Settings className="h-4 w-4" />
+                                </button>
+                              )}
                               {hasPermission('user.edit') && (
                                 <button
                                   onClick={() => handleEditUser(user)}
                                   className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
+                                  title="Edit User"
                                 >
                                   <Edit className="h-4 w-4" />
                                 </button>
@@ -288,6 +307,7 @@ const UserManagement: React.FC = () => {
                                   onClick={() => handleDeleteUser(user.id, user.username)}
                                   disabled={currentUser?.id === user.id}
                                   className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title={currentUser?.id === user.id ? "You can't delete your own account" : "Delete User"}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
@@ -343,6 +363,7 @@ const UserManagement: React.FC = () => {
           }}
           onUserUpdated={fetchUsers}
           user={editingUser}
+          onManagePermissions={handleManageUserPermissions}
         />
       )}
 
@@ -351,6 +372,20 @@ const UserManagement: React.FC = () => {
           isOpen={showPermissionModal}
           onClose={() => setShowPermissionModal(false)}
           onSuccess={fetchUsers}
+        />
+      )}
+
+      {hasPermission('user.manage_permissions') && selectedUser && (
+        <UserPermissionsModal
+          isOpen={showUserPermissionsModal}
+          onClose={() => {
+            setShowUserPermissionsModal(false);
+            setSelectedUser(null);
+          }}
+          onSuccess={fetchUsers}
+          userId={selectedUser.id}
+          username={selectedUser.username}
+          userRole={selectedUser.role}
         />
       )}
 

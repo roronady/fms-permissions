@@ -126,10 +126,16 @@ router.get('/permissions', checkPermission('user.manage_permissions'), async (re
 // Get role permissions
 router.get('/role-permissions', checkPermission('user.manage_permissions'), async (req, res) => {
   try {
-    const roles = ['admin', 'manager', 'user'];
+    // Get all unique roles from the database
+    const roles = await runQuery(`
+      SELECT DISTINCT role FROM role_permissions
+      UNION
+      SELECT DISTINCT role FROM users
+    `);
+    
     const rolePermissions = [];
     
-    for (const role of roles) {
+    for (const { role } of roles) {
       const permissions = await runQuery(`
         SELECT p.name
         FROM permissions p
@@ -231,6 +237,184 @@ router.get('/:id/permissions', checkPermission('user.manage_permissions'), async
   } catch (error) {
     console.error('Error fetching user permissions:', error);
     res.status(500).json({ error: 'Failed to fetch user permissions' });
+  }
+});
+
+// Get all available roles
+router.get('/roles', checkPermission('user.manage_permissions'), async (req, res) => {
+  try {
+    // Get all unique roles from the database
+    const roles = await runQuery(`
+      SELECT DISTINCT role FROM role_permissions
+      UNION
+      SELECT DISTINCT role FROM users
+      ORDER BY role
+    `);
+    
+    res.json(roles.map(r => r.role));
+  } catch (error) {
+    console.error('Error fetching roles:', error);
+    res.status(500).json({ error: 'Failed to fetch roles' });
+  }
+});
+
+// Create a new role
+router.post('/roles', checkPermission('user.manage_permissions'), async (req, res) => {
+  try {
+    const { role, permissions = [] } = req.body;
+    
+    if (!role) {
+      return res.status(400).json({ error: 'Role name is required' });
+    }
+    
+    // Check if role already exists
+    const existingRoles = await runQuery(`
+      SELECT DISTINCT role FROM role_permissions WHERE role = ?
+      UNION
+      SELECT DISTINCT role FROM users WHERE role = ?
+    `, [role, role]);
+    
+    if (existingRoles.length > 0) {
+      return res.status(400).json({ error: 'Role already exists' });
+    }
+    
+    // Start a transaction
+    await runStatement('BEGIN TRANSACTION');
+    
+    try {
+      // Get permission IDs
+      const permissionIds = [];
+      if (permissions.length > 0) {
+        const permissionRows = await runQuery(`
+          SELECT id FROM permissions WHERE name IN (${permissions.map(() => '?').join(',')})
+        `, permissions);
+        
+        permissionIds.push(...permissionRows.map(p => p.id));
+      }
+      
+      // Insert role permissions
+      for (const permissionId of permissionIds) {
+        await runStatement(
+          'INSERT INTO role_permissions (role, permission_id) VALUES (?, ?)',
+          [role, permissionId]
+        );
+      }
+      
+      // Commit the transaction
+      await runStatement('COMMIT');
+      
+      res.status(201).json({ 
+        message: 'Role created successfully',
+        role
+      });
+    } catch (error) {
+      // Rollback the transaction on error
+      await runStatement('ROLLBACK');
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error creating role:', error);
+    res.status(500).json({ error: 'Failed to create role' });
+  }
+});
+
+// Delete a role
+router.delete('/roles/:role', checkPermission('user.manage_permissions'), async (req, res) => {
+  try {
+    const { role } = req.params;
+    
+    // Check if role is in use
+    const usersWithRole = await runQuery('SELECT COUNT(*) as count FROM users WHERE role = ?', [role]);
+    
+    if (usersWithRole[0].count > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete role that is assigned to users',
+        count: usersWithRole[0].count
+      });
+    }
+    
+    // Delete role permissions
+    await runStatement('DELETE FROM role_permissions WHERE role = ?', [role]);
+    
+    res.json({ message: 'Role deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting role:', error);
+    res.status(500).json({ error: 'Failed to delete role' });
+  }
+});
+
+// Get user-specific permissions
+router.get('/:id/specific-permissions', checkPermission('user.manage_permissions'), async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    // Get user
+    const users = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Get user-specific permissions
+    const userPermissions = await runQuery(`
+      SELECT p.id, p.name, p.description, usp.grant_type
+      FROM user_specific_permissions usp
+      JOIN permissions p ON usp.permission_id = p.id
+      WHERE usp.user_id = ?
+      ORDER BY p.name
+    `, [userId]);
+    
+    res.json(userPermissions);
+  } catch (error) {
+    console.error('Error fetching user-specific permissions:', error);
+    res.status(500).json({ error: 'Failed to fetch user-specific permissions' });
+  }
+});
+
+// Update user-specific permissions
+router.put('/:id/specific-permissions', checkPermission('user.manage_permissions'), async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { permissions } = req.body;
+    
+    if (!Array.isArray(permissions)) {
+      return res.status(400).json({ error: 'Permissions must be an array' });
+    }
+    
+    // Get user
+    const users = await runQuery('SELECT * FROM users WHERE id = ?', [userId]);
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Start a transaction
+    await runStatement('BEGIN TRANSACTION');
+    
+    try {
+      // Delete existing user-specific permissions
+      await runStatement('DELETE FROM user_specific_permissions WHERE user_id = ?', [userId]);
+      
+      // Insert new user-specific permissions
+      for (const perm of permissions) {
+        if (!perm.permission_id || !perm.grant_type) continue;
+        
+        await runStatement(`
+          INSERT INTO user_specific_permissions (user_id, permission_id, grant_type)
+          VALUES (?, ?, ?)
+        `, [userId, perm.permission_id, perm.grant_type]);
+      }
+      
+      // Commit the transaction
+      await runStatement('COMMIT');
+      
+      res.json({ message: 'User-specific permissions updated successfully' });
+    } catch (error) {
+      // Rollback the transaction on error
+      await runStatement('ROLLBACK');
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error updating user-specific permissions:', error);
+    res.status(500).json({ error: 'Failed to update user-specific permissions' });
   }
 });
 

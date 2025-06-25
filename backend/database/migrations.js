@@ -18,6 +18,8 @@ import { addItemTypeToInventory } from './migrations/add-item-type-to-inventory.
 import { addImageUrlToInventory } from './migrations/add-image-url-to-inventory.js';
 import { addUserSecurityEnhancements } from './migrations/user-security-enhancements.js';
 import { addPermissionsTables } from './migrations/add-permissions-tables.js';
+import { removeUsersRoleConstraint } from './migrations/remove-users-role-constraint.js';
+import { addUserSpecificPermissionsTable } from './migrations/add-user-specific-permissions-table.js';
 
 const migrations = [
   {
@@ -104,6 +106,16 @@ const migrations = [
     version: 20,
     name: 'add_permissions_tables',
     execute: addPermissionsTables
+  },
+  {
+    version: 21,
+    name: 'remove_users_role_constraint',
+    execute: removeUsersRoleConstraint
+  },
+  {
+    version: 22,
+    name: 'add_user_specific_permissions_table',
+    execute: addUserSpecificPermissionsTable
   }
 ];
 

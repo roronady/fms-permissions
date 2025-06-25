@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Save, Info, AlertTriangle } from 'lucide-react';
 import { authService } from '../../services/authService';
+import { userService } from '../../services/userService';
 
 interface AddUserModalProps {
   isOpen: boolean;
@@ -17,10 +18,28 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onUserAdde
     role: 'user'
   });
 
+  const [availableRoles, setAvailableRoles] = useState<string[]>(['admin', 'manager', 'user']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const [showPasswordInfo, setShowPasswordInfo] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadRoles();
+    }
+  }, [isOpen]);
+
+  const loadRoles = async () => {
+    try {
+      const roles = await userService.getRoles();
+      if (Array.isArray(roles) && roles.length > 0) {
+        setAvailableRoles(roles);
+      }
+    } catch (error) {
+      console.error('Error loading roles:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -217,9 +236,9 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onUserAdde
               onChange={handleInputChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="user">User</option>
-              <option value="manager">Manager</option>
-              <option value="admin">Administrator</option>
+              {availableRoles.map(role => (
+                <option key={role} value={role}>{role}</option>
+              ))}
             </select>
           </div>
 
