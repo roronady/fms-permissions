@@ -3,7 +3,6 @@ import {
   ClipboardList, 
   Plus, 
   RefreshCw,
-  ShoppingCart,
   Columns
 } from 'lucide-react';
 import { requisitionService } from '../../services/requisitionService';
@@ -18,34 +17,14 @@ import IssueItemsModal from './IssueItemsModal';
 import { 
   RequisitionStats,
   RequisitionFilters,
-  RequisitionTable,
   RequisitionPermissions
 } from './RequisitionComponents';
 import { useNavigate, useLocation } from 'react-router-dom';
-import ColumnCustomizerModal, { Column } from '../Common/ColumnCustomizer';
+import ColumnCustomizerModal from '../Common/ColumnCustomizer';
 import { useColumnPreferences } from '../../hooks/useColumnPreferences';
+import RequisitionTable from './RequisitionTable';
 
-interface Requisition {
-  id: number;
-  title: string;
-  description: string;
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'pending' | 'approved' | 'rejected' | 'partially_approved' | 'issued' | 'partially_issued';
-  required_date: string;
-  department: string;
-  requester_id: number;
-  requester_name: string;
-  approver_id?: number;
-  approver_name?: string;
-  approval_date?: string;
-  approval_notes?: string;
-  item_count: number;
-  total_estimated_cost: number;
-  created_at: string;
-  updated_at: string;
-}
-
-const DEFAULT_COLUMNS: Column[] = [
+const DEFAULT_COLUMNS = [
   { id: 'title', label: 'Requisition', visible: true, width: 200, order: 1 },
   { id: 'requester', label: 'Requester', visible: true, width: 150, order: 2 },
   { id: 'priority', label: 'Priority', visible: true, width: 100, order: 3 },
@@ -60,7 +39,7 @@ const DEFAULT_COLUMNS: Column[] = [
 ];
 
 const Requisitions: React.FC = () => {
-  const [requisitions, setRequisitions] = useState<Requisition[]>([]);
+  const [requisitions, setRequisitions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -70,7 +49,7 @@ const Requisitions: React.FC = () => {
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showPartialApprovalModal, setShowPartialApprovalModal] = useState(false);
   const [showIssueModal, setShowIssueModal] = useState(false);
-  const [selectedRequisition, setSelectedRequisition] = useState<Requisition | null>(null);
+  const [selectedRequisition, setSelectedRequisition] = useState<any | null>(null);
   const [stats, setStats] = useState({
     total_requisitions: 0,
     pending_count: 0,
@@ -213,32 +192,32 @@ const Requisitions: React.FC = () => {
     }
   };
 
-  const handleView = (requisition: Requisition) => {
+  const handleView = (requisition: any) => {
     setSelectedRequisition(requisition);
     setShowViewModal(true);
   };
 
-  const handleEdit = (requisition: Requisition) => {
+  const handleEdit = (requisition: any) => {
     setSelectedRequisition(requisition);
     setShowEditModal(true);
   };
 
-  const handleQuickApproval = (requisition: Requisition) => {
+  const handleQuickApproval = (requisition: any) => {
     setSelectedRequisition(requisition);
     setShowApprovalModal(true);
   };
 
-  const handlePartialApproval = (requisition: Requisition) => {
+  const handlePartialApproval = (requisition: any) => {
     setSelectedRequisition(requisition);
     setShowPartialApprovalModal(true);
   };
 
-  const handleIssueItems = (requisition: Requisition) => {
+  const handleIssueItems = (requisition: any) => {
     setSelectedRequisition(requisition);
     setShowIssueModal(true);
   };
 
-  const handleCreatePO = (requisition: Requisition) => {
+  const handleCreatePO = (requisition: any) => {
     // Navigate to purchase orders page with state to open the create from requisition modal
     navigate('/purchase-orders', { 
       state: { 
@@ -248,7 +227,7 @@ const Requisitions: React.FC = () => {
     });
   };
 
-  const handleDelete = async (requisition: Requisition) => {
+  const handleDelete = async (requisition: any) => {
     const statusText = requisition.status === 'issued' ? 'issued' : 
                       requisition.status === 'partially_issued' ? 'partially issued' : 
                       requisition.status;
@@ -277,7 +256,7 @@ const Requisitions: React.FC = () => {
   };
 
   // Add the ability to create a purchase order from an approved requisition
-  const canCreatePO = (requisition: Requisition) => {
+  const canCreatePO = (requisition: any) => {
     return (requisition.status === 'approved' || requisition.status === 'partially_approved') &&
            (user?.role === 'admin' || user?.role === 'manager');
   };
@@ -347,7 +326,9 @@ const Requisitions: React.FC = () => {
       />
 
       {/* Requisitions Table - Using extended props */}
-      <RequisitionTable {...extendedTableProps} />
+      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+        <RequisitionTable {...extendedTableProps} />
+      </div>
 
       {/* User Role Info */}
       <RequisitionPermissions user={user} />

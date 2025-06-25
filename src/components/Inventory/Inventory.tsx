@@ -2,22 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   Package, 
   Plus, 
-  Search, 
   Download, 
   Upload, 
-  Edit, 
-  Trash2, 
-  AlertTriangle,
   FileText,
   RefreshCw,
-  TrendingUp,
-  TrendingDown,
-  Columns,
-  History,
-  Settings,
-  Plus as PlusIcon,
-  Minus,
-  Filter
+  Columns
 } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 import { useSocket } from '../../contexts/SocketContext';
@@ -28,6 +17,9 @@ import StockAdjustmentModal from './StockAdjustmentModal';
 import ColumnCustomizerModal from '../Common/ColumnCustomizer';
 import { useLocation } from 'react-router-dom';
 import { useColumnPreferences } from '../../hooks/useColumnPreferences';
+import InventoryTable from './InventoryTable';
+import InventoryStats from './InventoryStats';
+import InventoryFilters from './InventoryFilters';
 
 interface InventoryItem {
   id: number;
@@ -262,47 +254,6 @@ const Inventory: React.FC = () => {
     event.target.value = '';
   };
 
-  const getStatusColor = (item: InventoryItem) => {
-    if (item.quantity === 0) return 'bg-red-100 text-red-800';
-    if (item.is_low_stock) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-green-100 text-green-800';
-  };
-
-  const getStatusText = (item: InventoryItem) => {
-    if (item.quantity === 0) return 'Out of Stock';
-    if (item.is_low_stock) return 'Low Stock';
-    return 'In Stock';
-  };
-
-  const getPriceTrend = (currentPrice: number, lastPrice?: number) => {
-    if (!lastPrice || lastPrice === 0) return null;
-    
-    if (currentPrice > lastPrice) {
-      return <TrendingUp className="h-4 w-4 text-green-500" />;
-    } else if (currentPrice < lastPrice) {
-      return <TrendingDown className="h-4 w-4 text-red-500" />;
-    }
-    return null;
-  };
-  
-  const getItemTypeLabel = (itemType: string) => {
-    switch (itemType) {
-      case 'raw_material': return 'Raw Material';
-      case 'semi_finished_product': return 'Semi-Finished';
-      case 'finished_product': return 'Finished Product';
-      default: return itemType;
-    }
-  };
-  
-  const getItemTypeColor = (itemType: string) => {
-    switch (itemType) {
-      case 'raw_material': return 'bg-blue-100 text-blue-800';
-      case 'semi_finished_product': return 'bg-purple-100 text-purple-800';
-      case 'finished_product': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const totalItems = items.length;
   const inStockItems = items.filter(item => item.quantity > 0 && !item.is_low_stock).length;
   const lowStockItems = items.filter(item => item.is_low_stock && item.quantity > 0).length;
@@ -366,354 +317,38 @@ const Inventory: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center">
-            <Package className="w-8 h-8 text-blue-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Items</p>
-              <p className="text-2xl font-bold text-gray-900">{pagination.total}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center">
-            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-              <div className="w-4 h-4 bg-green-600 rounded-full"></div>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">In Stock</p>
-              <p className="text-2xl font-bold text-gray-900">{inStockItems}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center">
-            <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Low Stock</p>
-              <p className="text-2xl font-bold text-gray-900">{lowStockItems}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center">
-            <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-              <div className="w-4 h-4 bg-red-600 rounded-full"></div>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Out of Stock</p>
-              <p className="text-2xl font-bold text-gray-900">{outOfStockItems}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <InventoryStats 
+        totalItems={pagination.total}
+        inStockItems={inStockItems}
+        lowStockItems={lowStockItems}
+        outOfStockItems={outOfStockItems}
+      />
 
       {/* Filters */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search items..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-          <div className="sm:w-48">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Categories</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="sm:w-48">
-            <select
-              value={selectedItemType}
-              onChange={(e) => setSelectedItemType(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Item Types</option>
-              <option value="raw_material">Raw Materials</option>
-              <option value="semi_finished_product">Semi-Finished Products</option>
-              <option value="finished_product">Finished Products</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      <InventoryFilters 
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        selectedItemType={selectedItemType}
+        setSelectedItemType={setSelectedItemType}
+        categories={categories}
+      />
 
       {/* Inventory Table */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {visibleColumns.map(column => (
-                      <th 
-                        key={column.id} 
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                        style={{ width: `${column.width}px`, minWidth: `${column.width}px` }}
-                      >
-                        {column.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {items.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      {visibleColumns.map(column => {
-                        switch (column.id) {
-                          case 'name':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap">
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                                </div>
-                              </td>
-                            );
-                          case 'sku':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {item.sku}
-                              </td>
-                            );
-                          case 'category_name':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {item.category_name || 'Uncategorized'}
-                              </td>
-                            );
-                          case 'subcategory_name':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {item.subcategory_name || '-'}
-                              </td>
-                            );
-                          case 'quantity':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <div className="flex items-center">
-                                  {item.quantity} {item.unit_name && `${item.unit_name}`}
-                                  {item.is_low_stock && item.quantity > 0 && (
-                                    <AlertTriangle className="w-4 h-4 text-yellow-500 ml-2" />
-                                  )}
-                                </div>
-                              </td>
-                            );
-                          case 'unit_name':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {item.unit_name || '-'}
-                              </td>
-                            );
-                          case 'location_name':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {item.location_name || '-'}
-                              </td>
-                            );
-                          case 'supplier_name':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {item.supplier_name || '-'}
-                              </td>
-                            );
-                          case 'unit_price':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <div className="flex items-center">
-                                  ${item.unit_price.toFixed(2)}
-                                  {getPriceTrend(item.unit_price, item.last_price) && (
-                                    <span className="ml-2">
-                                      {getPriceTrend(item.unit_price, item.last_price)}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                            );
-                          case 'last_price':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {item.last_price ? `$${item.last_price.toFixed(2)}` : '-'}
-                              </td>
-                            );
-                          case 'average_price':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {item.average_price ? `$${item.average_price.toFixed(2)}` : '-'}
-                              </td>
-                            );
-                          case 'total_value':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                ${item.total_value.toFixed(2)}
-                              </td>
-                            );
-                          case 'min_quantity':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {item.min_quantity}
-                              </td>
-                            );
-                          case 'max_quantity':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {item.max_quantity}
-                              </td>
-                            );
-                          case 'item_type':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getItemTypeColor(item.item_type)}`}>
-                                  {getItemTypeLabel(item.item_type)}
-                                </span>
-                              </td>
-                            );
-                          case 'status':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(item)}`}>
-                                  {getStatusText(item)}
-                                </span>
-                              </td>
-                            );
-                          case 'actions':
-                            return (
-                              <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <div className="flex space-x-2">
-                                  <button 
-                                    onClick={() => handleEditItem(item.id)}
-                                    className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
-                                    title="Edit Item"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </button>
-                                  <button 
-                                    onClick={() => handleStockAdjustment(item)}
-                                    className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
-                                    title="Adjust Stock"
-                                  >
-                                    <Settings className="w-4 h-4" />
-                                  </button>
-                                  <button 
-                                    onClick={() => handleViewStockMovement(item.id)}
-                                    className="text-purple-600 hover:text-purple-900 p-1 rounded hover:bg-purple-50 transition-colors"
-                                    title="View Stock Movement History"
-                                  >
-                                    <History className="w-4 h-4" />
-                                  </button>
-                                  <button 
-                                    onClick={() => handleDeleteItem(item.id, item.name)}
-                                    className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                                    title="Delete Item"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            );
-                          default:
-                            return <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">-</td>;
-                        }
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            
-            {items.length === 0 && (
-              <div className="text-center py-12">
-                <Package className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No items found</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {searchTerm || selectedCategory !== 'all' || selectedItemType !== 'all'
-                    ? 'Try adjusting your search or filter criteria.'
-                    : 'Get started by adding your first inventory item.'
-                  }
-                </p>
-                <button
-                  onClick={handleAddItemClick}
-                  className="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add First Item
-                </button>
-              </div>
-            )}
-
-            {/* Pagination */}
-            {pagination.pages > 1 && (
-              <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                <div className="flex-1 flex justify-between sm:hidden">
-                  <button
-                    onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                    disabled={pagination.page === 1}
-                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
-                    disabled={pagination.page === pagination.pages}
-                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Next
-                  </button>
-                </div>
-                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      Showing <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> to{' '}
-                      <span className="font-medium">
-                        {Math.min(pagination.page * pagination.limit, pagination.total)}
-                      </span>{' '}
-                      of <span className="font-medium">{pagination.total}</span> results
-                    </p>
-                  </div>
-                  <div>
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                      <button
-                        onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                        disabled={pagination.page === 1}
-                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
-                        disabled={pagination.page === pagination.pages}
-                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        Next
-                      </button>
-                    </nav>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+        <InventoryTable 
+          items={items}
+          loading={loading}
+          pagination={pagination}
+          setPagination={setPagination}
+          visibleColumns={visibleColumns}
+          handleEditItem={handleEditItem}
+          handleViewStockMovement={handleViewStockMovement}
+          handleStockAdjustment={handleStockAdjustment}
+          handleDeleteItem={handleDeleteItem}
+          handleAddItemClick={handleAddItemClick}
+        />
       </div>
 
       {/* Modals */}

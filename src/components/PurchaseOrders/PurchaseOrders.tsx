@@ -2,19 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   ShoppingCart, 
   Plus, 
-  Search, 
   RefreshCw,
-  Eye,
-  CheckCircle,
-  XCircle,
-  Clock,
   Package,
-  Truck,
-  Calendar,
-  DollarSign,
-  Send,
-  Edit,
-  Trash2,
   Columns
 } from 'lucide-react';
 import { purchaseOrderService } from '../../services/purchaseOrderService';
@@ -26,34 +15,13 @@ import ViewPOModal from './ViewPOModal';
 import CreateFromRequisitionModal from './CreateFromRequisitionModal';
 import ReceiveItemsModal from './ReceiveItemsModal';
 import POApprovalModal from './POApprovalModal';
-import { POStatsCards, POFilters, POTable } from './PurchaseOrderComponents';
+import { POStatsCards, POFilters } from './PurchaseOrderComponents';
 import { useLocation } from 'react-router-dom';
-import ColumnCustomizerModal, { Column } from '../Common/ColumnCustomizer';
+import ColumnCustomizerModal from '../Common/ColumnCustomizer';
 import { useColumnPreferences } from '../../hooks/useColumnPreferences';
+import POTable from './POTable';
 
-interface PurchaseOrder {
-  id: number;
-  po_number: string;
-  title: string;
-  description: string;
-  supplier_id: number;
-  supplier_name: string;
-  supplier_contact: string;
-  status: 'draft' | 'pending_approval' | 'approved' | 'sent' | 'partially_received' | 'received' | 'cancelled';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  order_date: string;
-  expected_delivery_date: string;
-  actual_delivery_date: string;
-  total_amount: number;
-  item_count: number;
-  created_by: number;
-  created_by_name: string;
-  approved_by_name: string;
-  created_at: string;
-  updated_at: string;
-}
-
-const DEFAULT_COLUMNS: Column[] = [
+const DEFAULT_COLUMNS = [
   { id: 'po_number', label: 'PO Number', visible: true, width: 180, order: 1 },
   { id: 'supplier', label: 'Supplier', visible: true, width: 180, order: 2 },
   { id: 'priority', label: 'Priority', visible: true, width: 100, order: 3 },
@@ -67,7 +35,7 @@ const DEFAULT_COLUMNS: Column[] = [
 ];
 
 const PurchaseOrders: React.FC = () => {
-  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -77,7 +45,7 @@ const PurchaseOrders: React.FC = () => {
   const [showCreateFromReqModal, setShowCreateFromReqModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
-  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
+  const [selectedPO, setSelectedPO] = useState<any | null>(null);
   const [stats, setStats] = useState({
     total_pos: 0,
     draft_count: 0,
@@ -222,32 +190,32 @@ const PurchaseOrders: React.FC = () => {
     }
   };
 
-  const handleView = (po: PurchaseOrder) => {
+  const handleView = (po: any) => {
     setSelectedPO(po);
     setShowViewModal(true);
   };
 
-  const handleEdit = (po: PurchaseOrder) => {
+  const handleEdit = (po: any) => {
     setSelectedPO(po);
     setShowEditModal(true);
   };
 
-  const handleQuickApproval = (po: PurchaseOrder) => {
+  const handleQuickApproval = (po: any) => {
     setSelectedPO(po);
     setShowApprovalModal(true);
   };
 
-  const handlePartialApproval = (po: PurchaseOrder) => {
+  const handlePartialApproval = (po: any) => {
     setSelectedPO(po);
     setShowApprovalModal(true);
   };
 
-  const handleReceiveItems = (po: PurchaseOrder) => {
+  const handleReceiveItems = (po: any) => {
     setSelectedPO(po);
     setShowReceiveModal(true);
   };
 
-  const handleDelete = async (po: PurchaseOrder) => {
+  const handleDelete = async (po: any) => {
     if (confirm(`Are you sure you want to delete purchase order "${po.po_number}"?`)) {
       try {
         await purchaseOrderService.deletePurchaseOrder(po.id);
@@ -260,7 +228,7 @@ const PurchaseOrders: React.FC = () => {
     }
   };
 
-  const handleStatusUpdate = async (po: PurchaseOrder, newStatus: string) => {
+  const handleStatusUpdate = async (po: any, newStatus: string) => {
     try {
       await purchaseOrderService.updateStatus(po.id, { status: newStatus });
       loadPurchaseOrders();
@@ -334,21 +302,23 @@ const PurchaseOrders: React.FC = () => {
       />
 
       {/* Purchase Orders Table */}
-      <POTable
-        purchaseOrders={purchaseOrders}
-        loading={loading}
-        pagination={pagination}
-        setPagination={setPagination}
-        user={user}
-        onView={handleView}
-        onEdit={handleEdit}
-        onQuickApproval={handleQuickApproval}
-        onPartialApproval={handlePartialApproval}
-        onStatusUpdate={handleStatusUpdate}
-        onReceiveItems={handleReceiveItems}
-        onDelete={handleDelete}
-        onCreateNew={() => setShowCreateModal(true)}
-      />
+      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+        <POTable
+          purchaseOrders={purchaseOrders}
+          loading={loading}
+          pagination={pagination}
+          setPagination={setPagination}
+          user={user}
+          onView={handleView}
+          onEdit={handleEdit}
+          onQuickApproval={handleQuickApproval}
+          onPartialApproval={handlePartialApproval}
+          onStatusUpdate={handleStatusUpdate}
+          onReceiveItems={handleReceiveItems}
+          onDelete={handleDelete}
+          onCreateNew={() => setShowCreateModal(true)}
+        />
+      </div>
 
       {/* Modals */}
       <CreatePOModal
