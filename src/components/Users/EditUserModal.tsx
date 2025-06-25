@@ -50,6 +50,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
   const loadRoles = async () => {
     try {
       const roles = await userService.getRoles();
+      console.log("Available roles for edit:", roles);
       if (Array.isArray(roles) && roles.length > 0) {
         setAvailableRoles(roles);
       }

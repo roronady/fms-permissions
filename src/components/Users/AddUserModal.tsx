@@ -33,6 +33,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onUserAdde
   const loadRoles = async () => {
     try {
       const roles = await userService.getRoles();
+      console.log("Available roles:", roles);
       if (Array.isArray(roles) && roles.length > 0) {
         setAvailableRoles(roles);
       }

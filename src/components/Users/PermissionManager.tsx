@@ -58,6 +58,7 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
       setLoading(true);
       setError('');
       const data = await userService.getRolePermissions();
+      console.log('Loaded role permissions:', data);
       setRolePermissions(data);
     } catch (error) {
       console.error('Error loading role permissions:', error);
