@@ -17,9 +17,18 @@ export const addItemTypeToInventory = async () => {
         - Enable production workflows based on item type
     */
 
-    -- Add item_type column to inventory_items table
-    ALTER TABLE inventory_items ADD COLUMN item_type TEXT NOT NULL DEFAULT 'raw_material' 
-      CHECK (item_type IN ('raw_material', 'semi_finished_product', 'finished_product'));
+    -- Add item_type column to inventory_items table if it doesn't exist
+    -- Using DO block to check if column exists first
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pragma_table_info('inventory_items') WHERE name = 'item_type'
+      ) THEN
+        -- Add the column if it doesn't exist
+        ALTER TABLE inventory_items ADD COLUMN item_type TEXT NOT NULL DEFAULT 'raw_material' 
+          CHECK (item_type IN ('raw_material', 'semi_finished_product', 'finished_product'));
+      END IF;
+    END $$;
 
     -- Create index for better performance when filtering by item type
     CREATE INDEX IF NOT EXISTS idx_inventory_items_item_type ON inventory_items(item_type);

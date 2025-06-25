@@ -14,6 +14,7 @@ import { createBOMTables } from './migrations/create-bom-tables.js';
 import { createStockMovementsTable } from './migrations/stock-movements-table.js';
 import { createProductionOrdersTables } from './migrations/production-orders-tables.js';
 import { createUserPreferencesIndex } from './migrations/user-preferences-index.js';
+import { addItemTypeToInventory } from './migrations/add-item-type-to-inventory.js';
 
 const migrations = [
   {
@@ -80,6 +81,11 @@ const migrations = [
     version: 16,
     name: 'user_preferences_index',
     execute: createUserPreferencesIndex
+  },
+  {
+    version: 17,
+    name: 'add_item_type_to_inventory',
+    execute: addItemTypeToInventory
   }
 ];
 
