@@ -2,13 +2,13 @@ import { runStatement } from '../connection.js';
 
 export const createInitialSchema = async () => {
   const sql = `
-    -- Users table
+    -- Users table (without role constraint to allow dynamic roles)
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
-      role TEXT DEFAULT 'user' CHECK (role IN ('admin', 'manager', 'user')),
+      role TEXT DEFAULT 'user',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );

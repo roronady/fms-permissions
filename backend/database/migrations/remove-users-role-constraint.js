@@ -16,9 +16,6 @@ export const removeUsersRoleConstraint = async () => {
   try {
     console.log('Starting migration to remove role constraint from users table...');
 
-    // Since SQLite doesn't support dropping constraints directly,
-    // we need to recreate the table without the constraint
-
     // First, check if the users table exists
     const tableExists = await runQuery(`
       SELECT name FROM sqlite_master WHERE type='table' AND name='users'
@@ -29,14 +26,27 @@ export const removeUsersRoleConstraint = async () => {
       return;
     }
 
-    // Get the current table schema
-    const tableInfo = await runQuery(`PRAGMA table_info(users)`);
+    // Get the current table schema to check if constraint exists
+    const tableSchema = await runQuery(`
+      SELECT sql FROM sqlite_master WHERE type='table' AND name='users'
+    `);
+
+    // Check if the constraint still exists
+    const hasConstraint = tableSchema[0]?.sql?.includes('CHECK (role IN');
     
+    if (!hasConstraint) {
+      console.log('Role constraint already removed, skipping migration');
+      return;
+    }
+
     // Start a transaction and disable foreign key checks
+    await runStatement('PRAGMA foreign_keys = OFF');
     await runStatement('BEGIN TRANSACTION');
-    await runStatement('PRAGMA foreign_keys = OFF;');
 
     try {
+      // Get all current data from users table
+      const userData = await runQuery('SELECT * FROM users');
+
       // Create a new table without the CHECK constraint
       await runStatement(`
         CREATE TABLE users_new (
@@ -56,10 +66,19 @@ export const removeUsersRoleConstraint = async () => {
       `);
 
       // Copy data from the old table to the new one
-      await runStatement(`
-        INSERT INTO users_new 
-        SELECT * FROM users
-      `);
+      if (userData.length > 0) {
+        const columns = Object.keys(userData[0]);
+        const placeholders = columns.map(() => '?').join(',');
+        const columnNames = columns.join(',');
+        
+        for (const row of userData) {
+          const values = columns.map(col => row[col]);
+          await runStatement(
+            `INSERT INTO users_new (${columnNames}) VALUES (${placeholders})`,
+            values
+          );
+        }
+      }
 
       // Drop the old table
       await runStatement('DROP TABLE users');
@@ -67,18 +86,20 @@ export const removeUsersRoleConstraint = async () => {
       // Rename the new table to the original name
       await runStatement('ALTER TABLE users_new RENAME TO users');
 
-      // Recreate indexes
+      // Recreate indexes if they existed
+      await runStatement('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)');
+      await runStatement('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
       await runStatement('CREATE INDEX IF NOT EXISTS idx_users_password_reset_token ON users(password_reset_token)');
 
-      // Re-enable foreign key checks and commit the transaction
-      await runStatement('PRAGMA foreign_keys = ON;');
+      // Commit the transaction and re-enable foreign key checks
       await runStatement('COMMIT');
+      await runStatement('PRAGMA foreign_keys = ON');
       
       console.log('✅ Successfully removed role constraint from users table');
     } catch (error) {
       // Rollback the transaction on error and re-enable foreign keys
-      await runStatement('PRAGMA foreign_keys = ON;');
       await runStatement('ROLLBACK');
+      await runStatement('PRAGMA foreign_keys = ON');
       console.error('Error removing role constraint:', error);
       throw error;
     }
