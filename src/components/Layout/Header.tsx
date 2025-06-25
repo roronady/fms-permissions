@@ -3,6 +3,7 @@ import { Menu, LogOut, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import UserProfileDialog from './UserProfileDialog';
+import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -12,6 +13,12 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { user, logout } = useAuth();
   const { connected } = useSocket();
   const [showUserProfile, setShowUserProfile] = useState(false);
+  const navigate = useNavigate();
+
+  const handleProfileClick = () => {
+    // Navigate to settings page with profile tab active
+    navigate('/settings');
+  };
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
@@ -43,7 +50,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           {/* User menu */}
           <div className="flex items-center space-x-3">
             <button 
-              onClick={() => setShowUserProfile(true)}
+              onClick={handleProfileClick}
               className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <User className="h-4 w-4" />

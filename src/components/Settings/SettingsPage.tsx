@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Settings, 
   Database, 
@@ -11,11 +11,33 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import DatabaseBackup from './DatabaseBackup';
 import SecuritySettings from './SecuritySettings';
+import ProfileSettings from './ProfileSettings';
+import { useLocation } from 'react-router-dom';
 
 const SettingsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'backup' | 'profile' | 'security' | 'notifications' | 'system'>('backup');
+  const [activeTab, setActiveTab] = useState<'profile' | 'backup' | 'security' | 'notifications' | 'system'>('profile');
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const location = useLocation();
+
+  // Check if there's a tab parameter in the URL
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const tab = searchParams.get('tab');
+    if (tab) {
+      switch (tab) {
+        case 'profile':
+        case 'backup':
+        case 'security':
+        case 'notifications':
+        case 'system':
+          setActiveTab(tab);
+          break;
+        default:
+          break;
+      }
+    }
+  }, [location]);
 
   return (
     <div className="space-y-6">
@@ -47,17 +69,6 @@ const SettingsPage: React.FC = () => {
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8 px-6 overflow-x-auto" aria-label="Tabs">
             <button
-              onClick={() => setActiveTab('backup')}
-              className={`${
-                activeTab === 'backup'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center transition-colors`}
-            >
-              <Database className="h-5 w-5 mr-2" />
-              Database Backup
-            </button>
-            <button
               onClick={() => setActiveTab('profile')}
               className={`${
                 activeTab === 'profile'
@@ -67,6 +78,17 @@ const SettingsPage: React.FC = () => {
             >
               <User className="h-5 w-5 mr-2" />
               Profile Settings
+            </button>
+            <button
+              onClick={() => setActiveTab('backup')}
+              className={`${
+                activeTab === 'backup'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center transition-colors`}
+            >
+              <Database className="h-5 w-5 mr-2" />
+              Database Backup
             </button>
             <button
               onClick={() => setActiveTab('security')}
@@ -106,18 +128,12 @@ const SettingsPage: React.FC = () => {
 
         {/* Tab Content */}
         <div className="p-6">
-          {activeTab === 'backup' && (
-            <DatabaseBackup />
+          {activeTab === 'profile' && (
+            <ProfileSettings />
           )}
           
-          {activeTab === 'profile' && (
-            <div className="text-center py-12">
-              <User className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Profile Settings</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Profile settings coming soon.
-              </p>
-            </div>
+          {activeTab === 'backup' && (
+            <DatabaseBackup />
           )}
           
           {activeTab === 'security' && (
