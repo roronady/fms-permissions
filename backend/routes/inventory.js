@@ -1,6 +1,6 @@
 import express from 'express';
 import { runQuery, runStatement } from '../database/connection.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 import { logAuditTrail } from '../utils/audit.js';
 import { 
   calculateTotalValue,
