@@ -120,11 +120,8 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
       // Create new role
       await userService.createRole(newRoleName);
       
-      // Add new role to local state
-      setRolePermissions(prev => [
-        ...prev,
-        { role: newRoleName, permissions: [] }
-      ]);
+      // Reload role permissions to ensure we have the latest data
+      await loadRolePermissions();
       
       // Reset form
       setNewRoleName('');
@@ -132,9 +129,6 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
       
       // Show success message
       setSuccess(`Role "${newRoleName}" created successfully`);
-      
-      // Reload role permissions to ensure we have the latest data
-      await loadRolePermissions();
     } catch (error) {
       console.error('Error adding role:', error);
       setAddRoleError(error instanceof Error ? error.message : 'Failed to add role');
