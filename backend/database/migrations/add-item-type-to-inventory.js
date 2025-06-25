@@ -1,4 +1,4 @@
-import { runStatement } from '../connection.js';
+import { runStatement, runQuery } from '../connection.js';
 
 export const addItemTypeToInventory = async () => {
   const sql = `
@@ -29,7 +29,7 @@ export const addItemTypeToInventory = async () => {
   const checkColumnSql = `SELECT COUNT(*) as count FROM pragma_table_info('inventory_items') WHERE name = 'item_type'`;
   
   try {
-    const result = await runStatement(checkColumnSql);
+    const result = await runQuery(checkColumnSql);
 
     // Only run the migration if the column doesn't exist
     if (result[0].count === 0) {
