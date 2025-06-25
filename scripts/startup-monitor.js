@@ -75,6 +75,14 @@ const ensureApplicationReady = () => {
     runCommand('npm run build', 'Building frontend application');
   }
   
+  // Create custom roles
+  try {
+    log('Creating custom roles...');
+    runCommand('node scripts/create-custom-roles.js', 'Creating custom roles');
+  } catch (error) {
+    log('Warning: Failed to create custom roles. This is not critical.', 'warning');
+  }
+  
   // Verify everything is ready
   if (!checkFileExists('dist/index.html')) {
     throw new Error('Frontend build failed - index.html not found');

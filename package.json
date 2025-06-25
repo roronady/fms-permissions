@@ -14,7 +14,9 @@
     "health-check": "node scripts/health-check.js",
     "reset": "rm -rf node_modules package-lock.json dist && npm install && npm run build",
     "safe-start": "npm run build && npm run server",
-    "force-rebuild": "rm -rf dist && npm run build && npm run server"
+    "force-rebuild": "rm -rf dist && npm run build && npm run server",
+    "create-roles": "node scripts/create-custom-roles.js",
+    "create-numbered-roles": "node scripts/create-numbered-roles.js"
   },
   "dependencies": {
     "express": "^4.18.2",

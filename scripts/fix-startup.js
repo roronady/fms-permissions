@@ -98,6 +98,14 @@ const fixIssues = async () => {
       return;
     }
     
+    // Fix 4: Create custom roles
+    log('Creating custom roles...');
+    try {
+      runCommand('node scripts/create-custom-roles.js', 'Creating custom roles');
+    } catch (error) {
+      log('Warning: Failed to create custom roles. This is not critical.', 'warning');
+    }
+    
     log('🎉 All issues have been resolved!', 'success');
     log('You can now start the application with: npm run server', 'info');
     
