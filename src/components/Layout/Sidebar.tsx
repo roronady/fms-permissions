@@ -30,8 +30,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { name: 'Requisitions', href: '/requisitions', icon: ClipboardList },
     { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
     { name: 'Production', href: '/production', icon: Factory },
+    { name: 'Cabinet Catalog', href: '/cabinets', icon: Home },
+    { name: 'Cabinet Admin', href: '/cabinets/admin', icon: Settings, adminOnly: true },
+    { name: 'Cabinet Cart', href: '/cabinets/cart', icon: ShoppingCart },
     { name: 'Reports & Analytics', href: '/reports', icon: BarChart2 },
-    { name: 'Kitchen Designer', href: '/kitchen-designer', icon: Home },
     { name: 'Master Data', href: '/master-data', icon: Settings },
     ...(user?.role === 'admin' ? [{ name: 'User Management', href: '/users', icon: Users }] : []),
     { name: 'Settings', href: '/settings', icon: Database },
@@ -68,24 +70,31 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
         <nav className="mt-8 px-4 flex-1 overflow-y-auto">
           <ul className="space-y-2">
-            {Array.isArray(navigation) && navigation.map((item) => (
-              <li key={item.name}>
-                <NavLink
-                  to={item.href}
-                  className={({ isActive }) =>
-                    `flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                    }`
-                  }
-                  onClick={() => onClose()}
-                >
-                  <item.icon className="mr-3 h-5 w-5" />
-                  {item.name}
-                </NavLink>
-              </li>
-            ))}
+            {Array.isArray(navigation) && navigation.map((item) => {
+              // Skip admin-only items for non-admin users
+              if (item.adminOnly && user?.role !== 'admin') {
+                return null;
+              }
+              
+              return (
+                <li key={item.name}>
+                  <NavLink
+                    to={item.href}
+                    className={({ isActive }) =>
+                      `flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      }`
+                    }
+                    onClick={() => onClose()}
+                  >
+                    <item.icon className="mr-3 h-5 w-5" />
+                    {item.name}
+                  </NavLink>
+                </li>
+              );
+            })}
           </ul>
         </nav>
       </div>
