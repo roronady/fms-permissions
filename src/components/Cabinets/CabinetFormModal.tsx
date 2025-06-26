@@ -236,7 +236,7 @@ const CabinetFormModal: React.FC<CabinetFormModalProps> = ({ isOpen, onClose, on
                     onChange={handleInputChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., Base Cabinet 24\""
+                    placeholder='e.g., Base Cabinet 24"'
                   />
                 </div>
 
