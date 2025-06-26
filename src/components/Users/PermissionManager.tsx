@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Shield, Search, Check, RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { X, Save, Shield, Search, Check, RefreshCw, Plus, Trash2, Columns } from 'lucide-react';
 import { userService } from '../../services/userService';
 
 interface PermissionManagerProps {
@@ -19,6 +19,12 @@ interface RolePermissions {
   permissions: string[];
 }
 
+interface ColumnVisibility {
+  id: string;
+  label: string;
+  visible: boolean;
+}
+
 const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, onSuccess }) => {
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [rolePermissions, setRolePermissions] = useState<RolePermissions[]>([]);
@@ -31,6 +37,11 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
   const [newRoleName, setNewRoleName] = useState('');
   const [showAddRole, setShowAddRole] = useState(false);
   const [addRoleError, setAddRoleError] = useState('');
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility[]>([
+    { id: 'permission', label: 'Permission', visible: true },
+    { id: 'description', label: 'Description', visible: true }
+  ]);
 
   useEffect(() => {
     if (isOpen) {
@@ -38,6 +49,30 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
       loadRolePermissions();
     }
   }, [isOpen]);
+
+  // Update column visibility when roles change
+  useEffect(() => {
+    // Keep permission and description columns
+    const baseColumns: ColumnVisibility[] = [
+      { id: 'permission', label: 'Permission', visible: true },
+      { id: 'description', label: 'Description', visible: true }
+    ];
+    
+    // Add role columns
+    const roleColumns = rolePermissions.map(rp => ({
+      id: rp.role,
+      label: rp.role.charAt(0).toUpperCase() + rp.role.slice(1),
+      visible: true
+    }));
+    
+    // Merge with existing visibility settings
+    const newColumnVisibility = [...baseColumns, ...roleColumns].map(newCol => {
+      const existingCol = columnVisibility.find(col => col.id === newCol.id);
+      return existingCol ? { ...newCol, visible: existingCol.visible } : newCol;
+    });
+    
+    setColumnVisibility(newColumnVisibility);
+  }, [rolePermissions]);
 
   const loadPermissions = async () => {
     try {
@@ -161,6 +196,12 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
     }
   };
 
+  const toggleColumnVisibility = (columnId: string) => {
+    setColumnVisibility(prev => 
+      prev.map(col => col.id === columnId ? { ...col, visible: !col.visible } : col)
+    );
+  };
+
   // Get unique permission categories (first part of the permission name before the dot)
   const permissionCategories = Array.from(
     new Set(permissions.map(p => p.name.split('.')[0]))
@@ -187,6 +228,9 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
     groups[category].push(permission);
     return groups;
   }, {} as Record<string, Permission[]>);
+
+  // Get visible columns
+  const visibleColumns = columnVisibility.filter(col => col.visible);
 
   if (!isOpen) return null;
 
@@ -237,6 +281,13 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
               </select>
             </div>
             <div className="flex space-x-2">
+              <button
+                onClick={() => setShowColumnSelector(true)}
+                className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Columns className="h-4 w-4 mr-2" />
+                Columns
+              </button>
               <button
                 onClick={() => {
                   loadPermissions();
@@ -345,15 +396,12 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
-                        Permission
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
-                        Description
-                      </th>
-                      {rolePermissions.map(rp => (
-                        <th key={rp.role} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {rp.role}
+                      {visibleColumns.map(column => (
+                        <th 
+                          key={column.id} 
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          {column.label}
                         </th>
                       ))}
                     </tr>
@@ -362,7 +410,7 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
                     {Object.entries(groupedPermissions).map(([category, perms]) => (
                       <React.Fragment key={category}>
                         <tr className="bg-gray-50">
-                          <td colSpan={2 + rolePermissions.length} className="px-6 py-3">
+                          <td colSpan={visibleColumns.length} className="px-6 py-3">
                             <h3 className="text-sm font-semibold text-gray-900 uppercase">
                               {category.charAt(0).toUpperCase() + category.slice(1)}
                             </h3>
@@ -370,31 +418,42 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
                         </tr>
                         {perms.map(permission => (
                           <tr key={permission.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {permission.name}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-500">
-                              {permission.description}
-                            </td>
-                            {rolePermissions.map(rp => {
-                              const hasPermission = rp.permissions.includes(permission.name);
-                              
-                              return (
-                                <td key={rp.role} className="px-6 py-4 whitespace-nowrap text-center">
-                                  <button
-                                    onClick={() => handlePermissionToggle(rp.role, permission.name)}
-                                    className={`w-6 h-6 rounded-md flex items-center justify-center ${
-                                      hasPermission 
-                                        ? 'bg-green-100 text-green-600 hover:bg-green-200' 
-                                        : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                                    }`}
-                                    disabled={rp.role === 'admin'} // Admin always has all permissions
-                                    title={rp.role === 'admin' ? 'Admins always have all permissions' : ''}
-                                  >
-                                    {hasPermission && <Check className="w-4 h-4" />}
-                                  </button>
-                                </td>
-                              );
+                            {visibleColumns.map(column => {
+                              if (column.id === 'permission') {
+                                return (
+                                  <td key={column.id} className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {permission.name}
+                                  </td>
+                                );
+                              } else if (column.id === 'description') {
+                                return (
+                                  <td key={column.id} className="px-6 py-4 text-sm text-gray-500">
+                                    {permission.description}
+                                  </td>
+                                );
+                              } else {
+                                // This is a role column
+                                const role = column.id;
+                                const roleData = rolePermissions.find(rp => rp.role === role);
+                                const hasPermission = roleData?.permissions.includes(permission.name) || false;
+                                
+                                return (
+                                  <td key={column.id} className="px-6 py-4 whitespace-nowrap text-center">
+                                    <button
+                                      onClick={() => handlePermissionToggle(role, permission.name)}
+                                      className={`w-6 h-6 rounded-md flex items-center justify-center ${
+                                        hasPermission 
+                                          ? 'bg-green-100 text-green-600 hover:bg-green-200' 
+                                          : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                                      }`}
+                                      disabled={role === 'admin'} // Admin always has all permissions
+                                      title={role === 'admin' ? 'Admins always have all permissions' : ''}
+                                    >
+                                      {hasPermission && <Check className="w-4 h-4" />}
+                                    </button>
+                                  </td>
+                                );
+                              }
                             })}
                           </tr>
                         ))}
@@ -430,6 +489,65 @@ const PermissionManager: React.FC<PermissionManagerProps> = ({ isOpen, onClose, 
             </button>
           </div>
         </div>
+
+        {/* Column Selector Modal */}
+        {showColumnSelector && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <div className="flex items-center">
+                  <Columns className="h-6 w-6 text-blue-600 mr-3" />
+                  <h2 className="text-xl font-semibold text-gray-900">Customize Columns</h2>
+                </div>
+                <button
+                  onClick={() => setShowColumnSelector(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="h-5 w-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="p-6 max-h-[60vh] overflow-y-auto">
+                <p className="text-sm text-gray-600 mb-4">
+                  Select which columns to display in the permissions table.
+                </p>
+
+                <div className="space-y-3">
+                  {columnVisibility.map(column => (
+                    <div key={column.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id={`column-${column.id}`}
+                          checked={column.visible}
+                          onChange={() => toggleColumnVisibility(column.id)}
+                          className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                        />
+                        <label htmlFor={`column-${column.id}`} className="ml-2 text-sm font-medium text-gray-700">
+                          {column.label}
+                        </label>
+                      </div>
+                      
+                      {/* Disable toggling for required columns */}
+                      {(column.id === 'permission') && (
+                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Required</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 p-6 border-t border-gray-200">
+                <button
+                  onClick={() => setShowColumnSelector(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
