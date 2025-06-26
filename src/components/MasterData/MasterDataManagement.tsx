@@ -14,6 +14,7 @@ import UnitsTab from './UnitsTab';
 import LocationsTab from './LocationsTab';
 import SuppliersTab from './SuppliersTab';
 import DepartmentsTab from './DepartmentsTab';
+import CabinetModelsTab from '../CabinetCatalog/CabinetModelsTab';
 
 const MasterDataManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState('categories');
@@ -24,7 +25,8 @@ const MasterDataManagement: React.FC = () => {
     { id: 'units', name: 'Units', icon: Ruler },
     { id: 'locations', name: 'Locations', icon: MapPin },
     { id: 'suppliers', name: 'Suppliers', icon: Building2 },
-    { id: 'departments', name: 'Departments', icon: Building }
+    { id: 'departments', name: 'Departments', icon: Building },
+    { id: 'cabinet_models', name: 'Cabinet Models', icon: Package }
   ];
 
   const renderTabContent = () => {
@@ -41,6 +43,8 @@ const MasterDataManagement: React.FC = () => {
         return <SuppliersTab />;
       case 'departments':
         return <DepartmentsTab />;
+      case 'cabinet_models':
+        return <CabinetModelsTab />;
       default:
         return <CategoriesTab />;
     }

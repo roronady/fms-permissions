@@ -11,6 +11,7 @@ import UserManagement from './components/Users/UserManagement';
 import MasterDataManagement from './components/MasterData/MasterDataManagement';
 import ReportDashboard from './components/Reports/ReportDashboard';
 import SettingsPage from './components/Settings/SettingsPage';
+import KitchenDesignerPage from './components/CabinetCatalog/KitchenDesignerPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
 
@@ -44,6 +45,7 @@ function AppContent() {
             <Route path="/users" element={<UserManagement />} />
             <Route path="/reports" element={<ReportDashboard />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/kitchen-designer" element={<KitchenDesignerPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Layout>

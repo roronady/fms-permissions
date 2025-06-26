@@ -20,6 +20,8 @@ import { addUserSecurityEnhancements } from './migrations/user-security-enhancem
 import { addPermissionsTables } from './migrations/add-permissions-tables.js';
 import { removeUsersRoleConstraint } from './migrations/remove-users-role-constraint.js';
 import { addUserSpecificPermissionsTable } from './migrations/add-user-specific-permissions-table.js';
+import { createCabinetTables } from './migrations/create-cabinet-tables.js';
+import { updateItemTypeForCabinets } from './migrations/update-item-type-for-cabinets.js';
 
 const migrations = [
   {
@@ -116,6 +118,16 @@ const migrations = [
     version: 22,
     name: 'add_user_specific_permissions_table',
     execute: addUserSpecificPermissionsTable
+  },
+  {
+    version: 23,
+    name: 'create_cabinet_tables',
+    execute: createCabinetTables
+  },
+  {
+    version: 24,
+    name: 'update_item_type_for_cabinets',
+    execute: updateItemTypeForCabinets
   }
 ];
 

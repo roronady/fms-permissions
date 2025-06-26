@@ -11,7 +11,8 @@ import {
   ShoppingCart,
   Factory,
   BarChart2,
-  Database
+  Database,
+  Home
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -30,6 +31,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     { name: 'Purchase Orders', href: '/purchase-orders', icon: ShoppingCart },
     { name: 'Production', href: '/production', icon: Factory },
     { name: 'Reports & Analytics', href: '/reports', icon: BarChart2 },
+    { name: 'Kitchen Designer', href: '/kitchen-designer', icon: Home },
     { name: 'Master Data', href: '/master-data', icon: Settings },
     ...(user?.role === 'admin' ? [{ name: 'User Management', href: '/users', icon: Users }] : []),
     { name: 'Settings', href: '/settings', icon: Database },
